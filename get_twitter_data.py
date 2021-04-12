@@ -162,7 +162,7 @@ def save_to_s3(**kwargs):
     # Write the file to S3 bucket in specific path defined in key
     object.put(Body=data)
 
-    log.info('Finished saving the scraped tweets to s3'
+    log.info('Finished saving the scraped tweets to s3')
 
 
 
