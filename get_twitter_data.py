@@ -50,6 +50,8 @@ dag = DAG('london-housing-webapp',
 
 def get_flat_file_station_information(**kwargs):
 
+    import twint
+
     # establishing connection to S3 bucket
     bucket_name = kwargs['bucket_name']
     key = Variable.get('london-housing-webapp_get_csv', deserialize_json=True)['key1']
@@ -79,48 +81,71 @@ def get_flat_file_station_information(**kwargs):
     #create dataframe
     df_total = pd.DataFrame(columns=['id', 'tweet'])
 
-    # fetch tweets from particular subway station
+    # solve compatibility issues with notebooks and RunTime errors
+    #import nest_asyncio
+    #nest_asyncio.apply()
+
     c = twint.Config()
 
-    for index in range(len(stations[:5])):
+    # search London tweets
+    c.Limit = 2
+    c.Search = "London"
 
-        # limit tweets to 20 (1 unit represents 20 tweets)
-        c.Limit = 2
+    # save to df
+    c.Pandas = True
 
-        # hide console output
-        c.Hide_output = True
+    # run
+    twint.run.Search(c)
 
-        # only scrape text tweets
-        c.Images = False
-        c.Videos = False
+    # create dataframe and assign to total dataframe
+    df = twint.storage.panda.Tweets_df[["id", "tweet"]]
 
-        # scrape tweets from a radius of 1km around a particular subway station
-        c.Geo= str(stations['Latitude'][index])+','+str(stations['Longitude'][index])+', 1km'
+    # # configure twint and fetch tweets from particular subway station
+    # c = twint.Config()
+    #
+    # for index in range(len(stations[:5])):
+    #
+    #     # limit tweets to 20 (1 unit represents 20 tweets)
+    #     c.Limit = 2
+    #
+    #     # hide console output
+    #     c.Hide_output = True
+    #
+    #     # only scrape text tweets
+    #     c.Images = False
+    #     c.Videos = False
+    #
+    #     # scrape tweets from a radius of 1km around a particular subway station
+    #     c.Geo= str(stations['Latitude'][index])+','+str(stations['Longitude'][index])+', 1km'
+    #
+    #     # only scrape English tweets
+    #     c.Lang = "en"
+    #
+    #     # only tweets since last week
+    #     ## make it dynamic so that it automatically calculates -7 days
+    #     c.Since = '2020-08-01'
+    #
+    #     # save in df format
+    #     c.Pandas = True
+    #
+    #     # run
+    #     twint.run.Search(c)
+    #
+    #     # create dataframe and assign to total dataframe
+    #     df = twint.storage.panda.Tweets_df[["id", "tweet"]]
+    #
+    #     print(len(twint.storage.panda.Tweets_df))
+    #
+    #     df_total = df_total.append(df)
+    #
+    #     print('Scraped tweets around '+str(stations['Station'][index]))
 
-        # only scrape English tweets
-        c.Lang = "en"
+    df_total = df
 
-        # only tweets since last week
-        ## make it dynamic so that it automatically calculates -7 days
-        c.Since = '2020-08-01'
-
-        # save in df format
-        c.Pandas = True
-
-        # run
-        twint.run.Search(c)
-
-        # create dataframe and assign to total dataframe
-        df = twint.storage.panda.Tweets_df[["id", "tweet"]]
-
-        print(len(twint.storage.panda.Tweets_df))
-
-        df_total = df_total.append(df)
-
-        print('Scraped tweets around '+str(stations['Station'][index]))
-
-    #convert df into dict
+    # #convert df into dict
     data_dict = df_total.to_dict('series')
+
+
 
     return data_dict
 
