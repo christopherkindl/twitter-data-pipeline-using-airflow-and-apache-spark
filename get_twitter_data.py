@@ -4,6 +4,10 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.models import Variable
 from airflow.hooks.S3_hook import S3Hook
 from airflow.hooks.postgres_hook import PostgresHook
+from airflow.contrib.operators.emr_create_job_flow_operator import EmrCreateJobFlowOperator
+from airflow.contrib.operators.emr_add_steps_operator import EmrAddStepsOperator
+from airflow.contrib.operators.emr_terminate_job_flow_operator import EmrTerminateJobFlowOperator
+from airflow.contrib.sensors.emr_step_sensor import EmrStepSensor
 
 from datetime import datetime
 from datetime import timedelta
@@ -23,6 +27,95 @@ log = logging.getLogger(__name__)
 # =============================================================================
 # 1. Set up the main configurations of the dag
 # =============================================================================
+
+# Configurations
+BUCKET_NAME = 'london-housing-webapp'
+s3_data = 'data/twitter_output.csv'
+s3_script = 'scripts/sentiment_analysis.py'
+s3_output = 'final_output'
+
+
+JOB_FLOW_OVERRIDES = {
+    "Name": "Sentiment Analysis",
+    "ReleaseLabel": "emr-5.29.0",
+    "Applications": [{"Name": "Hadoop"}, {"Name": "Spark"}], # We want our EMR cluster to have HDFS and Spark
+    "Configurations": [
+        {
+            "Classification": "spark-env",
+            "Configurations": [
+                {
+                    "Classification": "export",
+                    "Properties": {"PYSPARK_PYTHON": "/usr/bin/python3"}, # by default EMR uses py2, change it to py3
+                }
+            ],
+        }
+    ],
+    "Instances": {
+        "InstanceGroups": [
+            {
+                "Name": "Master node",
+                "Market": "SPOT",
+                "InstanceRole": "MASTER",
+                "InstanceType": "m4.xlarge",
+                "InstanceCount": 1,
+            },
+            {
+                "Name": "Core - 2",
+                "Market": "SPOT", # Spot instances are a "use as available" instances
+                "InstanceRole": "CORE",
+                "InstanceType": "m4.xlarge",
+                "InstanceCount": 2,
+            },
+        ],
+        "KeepJobFlowAliveWhenNoSteps": True,
+        "TerminationProtected": False, # this lets us programmatically terminate the cluster
+    },
+    "JobFlowRole": "EMR_EC2_DefaultRole",
+    "ServiceRole": "EMR_DefaultRole",
+}
+
+
+s3_clean = "final_output/"
+SPARK_STEPS = [ # Note the params values are supplied to the operator
+    {
+        "Name": "Copy raw data from S3 to HDFS",
+        "ActionOnFailure": "CANCEL_AND_WAIT",
+        "HadoopJarStep": {
+            "Jar": "command-runner.jar",
+            "Args": [
+                "s3-dist-cp",
+                "--src=s3://{{ params.BUCKET_NAME }}/data",
+                "--dest=/twitter",
+            ],
+        },
+    },
+    {
+        "Name": "Run sentiment analysis",
+        "ActionOnFailure": "CANCEL_AND_WAIT",
+        "HadoopJarStep": {
+            "Jar": "command-runner.jar",
+            "Args": [
+                "spark-submit",
+                "--deploy-mode",
+                "client",
+                "s3://{{ params.BUCKET_NAME }}/{{ params.s3_script }}",
+            ],
+        },
+    },
+    {
+        "Name": "Move final output from HDFS to S3",
+        "ActionOnFailure": "CANCEL_AND_WAIT",
+        "HadoopJarStep": {
+            "Jar": "command-runner.jar",
+            "Args": [
+                "s3-dist-cp",
+                "--src=/output",
+                "--dest=s3://{{ params.BUCKET_NAME }}/{{ params.s3_clean }}",
+            ],
+        },
+    },
+]
+
 
 
 default_args = {
@@ -60,8 +153,8 @@ def create_schema(**kwargs):
     DROP TABLE IF EXISTS london_schema.stations;
     CREATE TABLE IF NOT EXISTS london_schema.stations(
         "station" varchar(256),
-        "latitude" varchar(256),
-        "longitude" varchar(256)
+        "latitude" numeric,
+        "longitude" numeric
     );
     """
 
@@ -327,6 +420,50 @@ save_result_to_postgres_db = PythonOperator(
 
 )
 
+# Create an EMR cluster
+create_emr_cluster = EmrCreateJobFlowOperator(
+    task_id="create_emr_cluster",
+    job_flow_overrides=JOB_FLOW_OVERRIDES,
+    aws_conn_id="aws_default",
+    emr_conn_id="emr_default",
+    dag=dag,
+)
+
+# Add your steps to the EMR cluster
+step_adder = EmrAddStepsOperator(
+    task_id="add_steps",
+    job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
+    aws_conn_id="aws_default",
+    steps=SPARK_STEPS,
+    params={ # these params are used to fill the paramterized values in SPARK_STEPS json
+        "BUCKET_NAME": Variable.get('london-housing-webapp', deserialize_json=True)['bucket_name'],
+        "s3_data": s3_data,
+        "s3_script": s3_script,
+        "s3_clean": s3_clean,
+    },
+    dag=dag,
+)
+
+last_step = len(SPARK_STEPS) - 1 # this value will let the sensor know the last step to watch
+# wait for the steps to complete
+step_checker = EmrStepSensor(
+    task_id="watch_step",
+    job_flow_id="{{ task_instance.xcom_pull('create_emr_cluster', key='return_value') }}",
+    step_id="{{ task_instance.xcom_pull(task_ids='add_steps', key='return_value')["
+    + str(last_step)
+    + "] }}",
+    aws_conn_id="aws_default_christopherkindl",
+    dag=dag,
+)
+
+# Terminate the EMR cluster
+terminate_emr_cluster = EmrTerminateJobFlowOperator(
+    task_id="terminate_emr_cluster",
+    job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
+    aws_conn_id="aws_default_christopherkindl",
+    dag=dag,
+)
+
 # save_to_s3 = PythonOperator(
 #     task_id='save_to_s3',
 #     provide_context=True,
@@ -348,7 +485,8 @@ save_result_to_postgres_db = PythonOperator(
 # 4. Indicating the order of the dags
 # =============================================================================
 
-create_schema >> get_flat_file_station_information >> save_result_to_postgres_db
+create_emr_cluster >> terminate_emr_cluster
+#create_schema >> get_flat_file_station_information >> create_emr_cluster >> add_steps >> watch_step >> terminate_emr_cluster >> save_result_to_postgres_db
 
 #For Alternative method
 # create_schema >> web_scraping_task_dexters >> s3_save_file_func
