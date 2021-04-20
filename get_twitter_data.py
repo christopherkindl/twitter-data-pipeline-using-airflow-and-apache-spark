@@ -155,9 +155,9 @@ def create_schema(**kwargs):
     CREATE SCHEMA IF NOT EXISTS london_schema;
     DROP TABLE IF EXISTS london_schema.stations;
     CREATE TABLE IF NOT EXISTS london_schema.stations(
-        "station" varchar(256),
-        "latitude" numeric,
-        "longitude" numeric
+        "tweets" varchar(256),
+        "date" varchar(256),
+        "station" timestamp
     );
     """
 
@@ -218,6 +218,7 @@ def get_twitter_data(**kwargs):
     station = []
     date = []
 
+    log.info('about to run search query via Twitter API')
     # run query with geolocation information obtained from station flat file
     for index in range(len(stations[:number_of_stations])):
         for i in tweepy.Cursor(api.search, q = 'london', lang = 'en', geocode= \
@@ -404,9 +405,9 @@ def save_result_to_postgres_db(**kwargs):
     for index in range(len(stations)):
         obj = []
 
-        obj.append([stations.Station[index],
-                   stations.Latitude[index],
-                   stations.Longitude[index]])
+        obj.append([stations.tweets[index],
+                   stations.date[index],
+                   stations.station[index]])
 
         cursor.executemany(s, obj)
         conn.commit()
