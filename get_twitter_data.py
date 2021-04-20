@@ -8,6 +8,7 @@ from airflow.contrib.operators.emr_create_job_flow_operator import EmrCreateJobF
 from airflow.contrib.operators.emr_add_steps_operator import EmrAddStepsOperator
 from airflow.contrib.operators.emr_terminate_job_flow_operator import EmrTerminateJobFlowOperator
 from airflow.contrib.sensors.emr_step_sensor import EmrStepSensor
+from airflow.hooks.base_hook import BaseHook
 
 from datetime import datetime
 from datetime import timedelta
@@ -18,7 +19,8 @@ import re
 import requests
 import json
 import io
-import twint
+#import twint
+import tweepy
 
 
 log = logging.getLogger(__name__)
@@ -164,9 +166,13 @@ def create_schema(**kwargs):
     log.info("Created Schema and Table")
 
 
-def get_flat_file_station_information(**kwargs):
+def get_twitter_data(**kwargs):
 
-    import twint
+    # twitter api credentials
+    consumer_key = Variable.get('consumer_key', deserialize_json=True)['consumer_key']
+    consumer_secret = Variable.get('consumer_secret', deserialize_json=True)['consumer_secret']
+    access_token = Variable.get('access_token', deserialize_json=True)['access_token']
+    access_token_secret = Variable.get('access_token_secret', deserialize_json=True)['access_token_secret']
 
     # establishing connection to S3 bucket
     bucket_name = kwargs['bucket_name']
@@ -198,7 +204,31 @@ def get_flat_file_station_information(**kwargs):
     #df_total = pd.DataFrame(columns=['id', 'tweet'])
     #df_total = pd.DataFrame(columns=['id', 'tweet'])
 
-    log.info('df created')
+    log.info('station information file in final df format')
+
+    # test twitter api with a test query
+    # max number of tweets
+    number_of_tweets = 5
+
+    # max number of stations
+    number_of_stations = 3
+
+    # store search results as list items
+    tweets = []
+    station = []
+    date = []
+
+    # run query with geolocation information obtained from station flat file
+    for index in range(len(stations[:number_of_stations])):
+        for i in tweepy.Cursor(api.search, q = 'london', lang = 'en', geocode= \
+                               str(stations['Latitude'][index])+','+str(stations['Longitude'][index])+',1km').\
+            items(number_of_tweets):
+            tweets.append(i.text)
+            station.append(stations['Station'][index])
+            date.append(i.created_at)
+
+    # create dataframe
+    df = pd.DataFrame({'tweets': tweets, 'date':date, 'station': station})
 
     # solve compatibility issues with notebooks and RunTime errors
     #import nest_asyncio
@@ -274,7 +304,7 @@ def get_flat_file_station_information(**kwargs):
     csv_buffer = io.StringIO()
 
     #Ensuring the CSV files treats "NAN" as null values
-    data_dict_csv= stations.to_csv(csv_buffer, index=False)
+    data_csv= df.to_csv(csv_buffer, index=False)
 
     # Save the pandas dataframe as a csv to s3
     s3 = s3.get_resource_type('s3')
@@ -288,7 +318,7 @@ def get_flat_file_station_information(**kwargs):
     # Write the file to S3 bucket in specific path defined in key
     object.put(Body=data)
 
-    log.info('Finished saving the scraped data to s3')
+    log.info('Finished saving the scraped twitter data to s3')
 
 
     return
@@ -402,9 +432,9 @@ create_schema = PythonOperator(
     dag=dag,
 )
 
-get_flat_file_station_information = PythonOperator(
-    task_id='get_flat_file_station_information',
-    python_callable=get_flat_file_station_information,
+get_twitter_data = PythonOperator(
+    task_id='get_twitter_data',
+    python_callable=get_twitter_data,
     trigger_rule=TriggerRule.ALL_SUCCESS,
     op_kwargs=default_args,
     provide_context=True,
@@ -487,7 +517,7 @@ terminate_emr_cluster = EmrTerminateJobFlowOperator(
 # =============================================================================
 
 # test
-create_emr_cluster >> terminate_emr_cluster
+create_schema >> get_twitter_data >> save_result_to_postgres_db
 #create_schema >> get_flat_file_station_information >> create_emr_cluster >> add_steps >> watch_step >> terminate_emr_cluster >> save_result_to_postgres_db
 
 #For Alternative method

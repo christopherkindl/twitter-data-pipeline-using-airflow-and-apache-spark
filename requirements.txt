@@ -3,3 +3,4 @@ twint==2.1.21
 nest_asyncio==1.5.1
 textblob==0.15.3
 pyspark==3.0.1
+tweepy==3.10.0
