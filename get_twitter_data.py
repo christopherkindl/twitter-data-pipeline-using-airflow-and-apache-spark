@@ -174,6 +174,11 @@ def get_twitter_data(**kwargs):
     access_token = Variable.get('london-housing-webapp_access_token', deserialize_json=True)['access_token']
     access_token_secret = Variable.get('london-housing-webapp_access_token_secret', deserialize_json=True)['access_token_secret']
 
+    # assign credentials
+    auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
+    auth.set_access_token(access_token, access_token_secret)
+    api = tweepy.API(auth)
+
     log.info('credentials provided')
 
     # establishing connection to S3 bucket
