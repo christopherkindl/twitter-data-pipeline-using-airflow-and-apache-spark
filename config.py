@@ -1,0 +1,6 @@
+# twitter api credentials
+consumer_key = 'DlidHq2CnP45yMJIhrX8pdKNc'
+consumer_secret = 'loXSV3wx5GgtsQL4NXzyhF05w3JEsMuNo0OkYzFxxf6HmiKHym'
+access_token = '1384290357542719489-DcyoxpaVdgt3o7epbAYR4apUokvqng'
+access_token_secret = '2Irv2RJSjgTgvTuRsSYnzDYlfqREFKF8OK8YtCRYTqySP'
+bearer_token = 'AAAAAAAAAAAAAAAAAAAAAO7tOgEAAAAAg98XSCXlF6HtnXPLueDo%2BhSngbs%3DhfuVfM9kDdNNGZxwRmFz06I9dAvZ72nhKlnXTglnVbnsYpGatN'
