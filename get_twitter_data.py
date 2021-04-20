@@ -125,6 +125,7 @@ default_args = {
     'email_on_failure': True,
     'email_on_retry': False,
     'aws_conn_id': 'aws_default_christopherkindl',
+    'emr_conn_id' : 'aws_default_christopherkindl', # might change
     'bucket_name': Variable.get('london-housing-webapp', deserialize_json=True)['bucket_name'],
     'postgres_conn_id': 'engineering_groupwork_carina', #change with your credentials
     'retries': 1,
@@ -425,7 +426,7 @@ create_emr_cluster = EmrCreateJobFlowOperator(
     task_id="create_emr_cluster",
     job_flow_overrides=JOB_FLOW_OVERRIDES,
     aws_conn_id="aws_default_christopherkindl",
-    emr_conn_id="emr_default",
+    emr_conn_id="aws_default_christopherkindl",
     dag=dag,
 )
 
