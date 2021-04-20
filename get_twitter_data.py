@@ -169,10 +169,12 @@ def create_schema(**kwargs):
 def get_twitter_data(**kwargs):
 
     # twitter api credentials
-    consumer_key = Variable.get('consumer_key', deserialize_json=True)['consumer_key']
-    consumer_secret = Variable.get('consumer_secret', deserialize_json=True)['consumer_secret']
-    access_token = Variable.get('access_token', deserialize_json=True)['access_token']
-    access_token_secret = Variable.get('access_token_secret', deserialize_json=True)['access_token_secret']
+    consumer_key = Variable.get('london-housing-webapp_consumer_key', deserialize_json=True)['consumer_key']
+    consumer_secret = Variable.get('london-housing-webapp_consumer_secret', deserialize_json=True)['consumer_secret']
+    access_token = Variable.get('london-housing-webapp_access_token', deserialize_json=True)['access_token']
+    access_token_secret = Variable.get('london-housing-webapp_access_token_secret', deserialize_json=True)['access_token_secret']
+
+    log.info('credentials provided')
 
     # establishing connection to S3 bucket
     bucket_name = kwargs['bucket_name']
@@ -197,13 +199,6 @@ def get_twitter_data(**kwargs):
     # only keep essential columns
     stations.drop(columns = ['OS X', 'OS Y', 'Zone', 'Postcode'], inplace = True)
 
-    log.info('dropped unnecessary columns')
-
-
-    #create dataframe
-    #df_total = pd.DataFrame(columns=['id', 'tweet'])
-    #df_total = pd.DataFrame(columns=['id', 'tweet'])
-
     log.info('station information file in final df format')
 
     # test twitter api with a test query
@@ -227,8 +222,12 @@ def get_twitter_data(**kwargs):
             station.append(stations['Station'][index])
             date.append(i.created_at)
 
+    log.info('query run')
+
     # create dataframe
     df = pd.DataFrame({'tweets': tweets, 'date':date, 'station': station})
+
+    log.info('query results converted into df')
 
     # solve compatibility issues with notebooks and RunTime errors
     #import nest_asyncio
