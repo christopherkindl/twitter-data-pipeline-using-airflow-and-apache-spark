@@ -486,6 +486,7 @@ terminate_emr_cluster = EmrTerminateJobFlowOperator(
 # 4. Indicating the order of the dags
 # =============================================================================
 
+# test
 create_emr_cluster >> terminate_emr_cluster
 #create_schema >> get_flat_file_station_information >> create_emr_cluster >> add_steps >> watch_step >> terminate_emr_cluster >> save_result_to_postgres_db
 
