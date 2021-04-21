@@ -10,6 +10,9 @@ from airflow.contrib.operators.emr_terminate_job_flow_operator import EmrTermina
 from airflow.contrib.sensors.emr_step_sensor import EmrStepSensor
 from airflow.hooks.base_hook import BaseHook
 
+from mwaalib.emr_submit_and_monitor_step import EmrSubmitAndMonitorStepOperator
+import mwaalib.workflow_lib as etlclient
+
 from datetime import datetime
 from datetime import timedelta
 import logging
@@ -19,6 +22,8 @@ import re
 import requests
 import json
 import io
+import os
+import shlex
 #import twint
 import tweepy
 
@@ -31,92 +36,93 @@ log = logging.getLogger(__name__)
 # =============================================================================
 
 # Configurations
-BUCKET_NAME = 'london-housing-webapp'
-s3_data = 'data/twitter_output.csv'
-s3_script = 'scripts/sentiment_analysis.py'
-s3_output = 'final_output'
-
-
-JOB_FLOW_OVERRIDES = {
-    "Name": "Sentiment Analysis",
-    "ReleaseLabel": "emr-5.29.0",
-    "Applications": [{"Name": "Hadoop"}, {"Name": "Spark"}], # We want our EMR cluster to have HDFS and Spark
-    "Configurations": [
-        {
-            "Classification": "spark-env",
-            "Configurations": [
-                {
-                    "Classification": "export",
-                    "Properties": {"PYSPARK_PYTHON": "/usr/bin/python3"}, # by default EMR uses py2, change it to py3
-                }
-            ],
-        }
-    ],
-    "Instances": {
-        "InstanceGroups": [
-            {
-                "Name": "Master node",
-                "Market": "SPOT",
-                "InstanceRole": "MASTER",
-                "InstanceType": "m4.xlarge",
-                "InstanceCount": 1,
-            },
-            {
-                "Name": "Core - 2",
-                "Market": "SPOT", # Spot instances are a "use as available" instances
-                "InstanceRole": "CORE",
-                "InstanceType": "m4.xlarge",
-                "InstanceCount": 2,
-            },
-        ],
-        "KeepJobFlowAliveWhenNoSteps": True,
-        "TerminationProtected": False, # this lets us programmatically terminate the cluster
-    },
-    "JobFlowRole": "EMR_EC2_DefaultRole",
-    "ServiceRole": "EMR_DefaultRole",
-}
-
-
-s3_clean = "final_output/"
-SPARK_STEPS = [ # Note the params values are supplied to the operator
-    {
-        "Name": "Copy raw data from S3 to HDFS",
-        "ActionOnFailure": "CANCEL_AND_WAIT",
-        "HadoopJarStep": {
-            "Jar": "command-runner.jar",
-            "Args": [
-                "s3-dist-cp",
-                "--src=s3://{{ params.BUCKET_NAME }}/data",
-                "--dest=/twitter",
-            ],
-        },
-    },
-    {
-        "Name": "Run sentiment analysis",
-        "ActionOnFailure": "CANCEL_AND_WAIT",
-        "HadoopJarStep": {
-            "Jar": "command-runner.jar",
-            "Args": [
-                "spark-submit",
-                "--deploy-mode",
-                "client",
-                "s3://{{ params.BUCKET_NAME }}/{{ params.s3_script }}",
-            ],
-        },
-    },
-    {
-        "Name": "Move final output from HDFS to S3",
-        "ActionOnFailure": "CANCEL_AND_WAIT",
-        "HadoopJarStep": {
-            "Jar": "command-runner.jar",
-            "Args": [
-                "s3-dist-cp",
-                "--src=/output",
-                "--dest=s3://{{ params.BUCKET_NAME }}/{{ params.s3_clean }}",
-            ],
-        },
-    },
-]
+# BUCKET_NAME = Variable.get('london-housing-webapp', deserialize_json=True)['bucket_name']
+# s3_data = 'data/twitter_output.csv'
+# s3_script = 'scripts/sentiment_analysis.py'
+# s3_clean = 'final_output/'
+#
+#
+# JOB_FLOW_OVERRIDES = {
+#     "Name": "Sentiment Analysis",
+#     "ReleaseLabel": "emr-5.29.0",
+#     "Applications": [{"Name": "Hadoop"}, {"Name": "Spark"}], # We want our EMR cluster to have HDFS and Spark
+#     "Configurations": [
+#         {
+#             "Classification": "spark-env",
+#             "Configurations": [
+#                 {
+#                     "Classification": "export",
+#                     "Properties": {"PYSPARK_PYTHON": "/usr/bin/python3"}, # by default EMR uses py2, change it to py3
+#                 }
+#             ],
+#         }
+#     ],
+#     "Instances": {
+#         "InstanceGroups": [
+#             {
+#                 "Name": "Master node",
+#                 "Market": "SPOT",
+#                 "InstanceRole": "MASTER",
+#                 "InstanceType": "m4.xlarge",
+#                 "InstanceCount": 1,
+#             },
+#             {
+#                 "Name": "Core - 2",
+#                 "Market": "SPOT", # Spot instances are a "use as available" instances
+#                 "InstanceRole": "CORE",
+#                 "InstanceType": "m4.xlarge",
+#                 "InstanceCount": 2,
+#             },
+#         ],
+#         "KeepJobFlowAliveWhenNoSteps": True,
+#         "TerminationProtected": False, # this lets us programmatically terminate the cluster
+#     },
+#     "JobFlowRole": "EMR_EC2_DefaultRole",
+#     "ServiceRole": "EMR_DefaultRole",
+# }
+#
+#
+#
+# SPARK_STEPS = [ # Note the params values are supplied to the operator
+#     {
+#         "Name": "Copy raw data from S3 to HDFS",
+#         "ActionOnFailure": "CANCEL_AND_WAIT",
+#         "HadoopJarStep": {
+#             "Jar": "command-runner.jar",
+#             "Args": [
+#                 "s3-dist-cp",
+#                 "--src=s3://{{ params.BUCKET_NAME }}/data",
+#                 "--dest=/twitter",
+#             ],
+#         },
+#     },
+#     {
+#         "Name": "Run sentiment analysis",
+#         "ActionOnFailure": "CANCEL_AND_WAIT",
+#         "HadoopJarStep": {
+#             "Jar": "command-runner.jar",
+#             "Args": [
+#                 "spark-submit",
+#                 "--deploy-mode",
+#                 "client",
+#                 "s3://{{ params.BUCKET_NAME }}/{{ params.s3_script }}",
+#             ],
+#         },
+#     },
+#     {
+#         "Name": "Move final output from HDFS to S3",
+#         "ActionOnFailure": "CANCEL_AND_WAIT",
+#         "HadoopJarStep": {
+#             "Jar": "command-runner.jar",
+#             "Args": [
+#                 "s3-dist-cp",
+#                 "--src=/output",
+#                 "--dest=s3://{{ params.BUCKET_NAME }}/",
+#                 #{{ params.s3_clean }}",
+#             ],
+#         },
+#     },
+# ]
 
 
 
@@ -127,7 +133,7 @@ default_args = {
     'email_on_failure': True,
     'email_on_retry': False,
     'aws_conn_id': 'aws_default_christopherkindl',
-    'emr_conn_id' : 'aws_default_christopherkindl', # might change
+    'emr_conn_id' : 'emr_default_christopherkindl', # might change
     'bucket_name': Variable.get('london-housing-webapp', deserialize_json=True)['bucket_name'],
     'postgres_conn_id': 'engineering_groupwork_carina', #change with your credentials
     'retries': 1,
@@ -137,12 +143,14 @@ default_args = {
 }
 
 dag = DAG('london-housing-webapp',
-          description='Test run to get flat file',
+          description='Test runs',
           schedule_interval='@daily',
           catchup=False,
           default_args=default_args,
           max_active_runs=1)
 
+region = etlclient.detect_running_region()
+etlclient.client(region_name=region)
 
 # Creating schema if inexistant
 def create_schema(**kwargs):
@@ -156,8 +164,8 @@ def create_schema(**kwargs):
     DROP TABLE IF EXISTS london_schema.stations;
     CREATE TABLE IF NOT EXISTS london_schema.stations(
         "tweets" varchar(256),
-        "date" varchar(256),
-        "station" timestamp
+        "date" timestamp,
+        "station" varchar(256)
     );
     """
 
@@ -386,7 +394,7 @@ def save_result_to_postgres_db(**kwargs):
     # Read the content of the key from the bucket
     csv_bytes = s3.read_key(key, bucket_name)
     # Read the CSV
-    stations = pd.read_csv(io.StringIO(csv_bytes ))#, encoding='utf-8')
+    df = pd.read_csv(io.StringIO(csv_bytes ))#, encoding='utf-8')
 
     log.info('passing data from S3 bucket')
 
@@ -400,14 +408,14 @@ def save_result_to_postgres_db(**kwargs):
     log.info('Loading row by row into database')
 
     #Load the rows into the PostgresSQL database
-    s = """INSERT INTO london_schema.stations(station, latitude, longitude) VALUES (%s, %s, %s)"""
+    s = """INSERT INTO london_schema.stations(tweets, date, station) VALUES (%s, %s, %s)"""
 
-    for index in range(len(stations)):
+    for index in range(len(df)):
         obj = []
 
-        obj.append([stations.tweets[index],
-                   stations.date[index],
-                   stations.station[index]])
+        obj.append([df.tweets[index],
+                    df.date[index],
+                    df.station[index]])
 
         cursor.executemany(s, obj)
         conn.commit()
@@ -424,6 +432,38 @@ def save_result_to_postgres_db(**kwargs):
 #                          aws_conn_id='aws_default_christopherkindl')
 #     response_1 = hook.invoke_lambda(payload='null')
 #     print('Response--->', response_1)
+
+# Creates an EMR cluster
+def create_emr(**kwargs):
+    cluster_id = etlclient.create_cluster(region_name=region, cluster_name='sentiment_analysis', num_core_nodes=2)
+    return cluster_id
+
+# Waits for the EMR cluster to be ready to accept jobs
+def wait_for_completion(**kwargs):
+    ti = kwargs['ti']
+    cluster_id = ti.xcom_pull(task_ids='create_cluster')
+    etlclient.wait_for_cluster_creation(cluster_id)
+
+# Terminates the EMR cluster
+def terminate_emr(**kwargs):
+    ti = kwargs['ti']
+    cluster_id = ti.xcom_pull(task_ids='create_cluster')
+    etlclient.terminate_cluster(cluster_id)
+
+# Monitors Step function execution
+def monitor_step_function(**kwargs):
+    ti = kwargs['ti']
+    execution_arn = ti.xcom_pull(task_ids='trigger_stepfunctions')
+    response = etlclient.monitor_stepfunction_run(execution_arn)
+    return response
+
+# Starts the Step Function
+def trigger_step_function(**kwargs):
+    # get the Step function arn
+    statemachine_arn = kwargs['stateMachineArn']
+    sfn_execution_arn = etlclient.start_execution(statemachine_arn)
+    return sfn_execution_arn
+
 
 # =============================================================================
 # 3. Set up the main configurations of the dag
@@ -461,18 +501,100 @@ create_emr_cluster = EmrCreateJobFlowOperator(
     task_id="create_emr_cluster",
     job_flow_overrides=JOB_FLOW_OVERRIDES,
     aws_conn_id="aws_default_christopherkindl",
-    emr_conn_id="aws_default_christopherkindl",
+    emr_conn_id="emr_default_christopherkindl",
     dag=dag,
 )
+
+# Define the individual tasks using Python Operators
+create_cluster = PythonOperator(
+    task_id='create_cluster',
+    python_callable=create_emr,
+    dag=dag)
+
+wait_for_cluster_completion = PythonOperator(
+    task_id='wait_for_cluster_completion',
+    python_callable=wait_for_completion,
+    dag=dag)
+
+extract_load_data = EmrSubmitAndMonitorStepOperator(
+    task_id="extract_load_data",
+    trigger_rule="one_success",
+    steps=[
+        {
+            "Name": "extract_load_data",
+            "ActionOnFailure": "CONTINUE",
+            "HadoopJarStep": {
+                "Jar": "command-runner.jar",
+                "Args": [
+                    "/bin/bash",
+                    "-c",
+                    "wget http://files.grouplens.org/datasets/movielens/ml-latest.zip && unzip ml-latest.zip && aws s3 cp ml-latest s3://{}/raw --recursive".format(
+                        etlclient.get_demo_bucket_name()),
+                ],
+            },
+        }
+    ],
+    job_flow_id="{{ task_instance.xcom_pull(task_ids='create_cluster', key='return_value') }}",
+    aws_conn_id="aws_default",
+    check_interval=int("30"),
+    job_name="extract_load_data",
+    dag=dag
+)
+
+preprocess_movies = EmrSubmitAndMonitorStepOperator(
+    task_id="preprocess_movies",
+    steps=[
+        {
+            "Name": "preprocess_movies",
+            "ActionOnFailure": "CONTINUE",
+            "HadoopJarStep": {
+                "Jar": "command-runner.jar",
+                "Args": [
+                    "spark-submit",
+                    "--conf",
+                    "deploy-mode=cluster",
+                    "s3://{}/scripts/preprocess_movies.py".format(etlclient.get_demo_bucket_name()),
+                    etlclient.get_demo_bucket_name()
+                ],
+            },
+        }
+    ],
+    job_flow_id="{{ task_instance.xcom_pull(task_ids='create_cluster', key='return_value') }}",
+    aws_conn_id="aws_default",
+    check_interval=int("30"),
+    job_name="preprocess_movies",
+    dag=dag
+)
+
+terminate_cluster = PythonOperator(
+    task_id='terminate_cluster',
+    python_callable=terminate_emr,
+    trigger_rule='all_done',
+    dag=dag)
+
+trigger_sfn = PythonOperator(
+    task_id='trigger_stepfunctions',
+    python_callable=trigger_step_function,
+    op_kwargs={'stateMachineArn': etlclient.get_stepfunction_arn()},
+    dag=dag)
+
+monitor_sfn = PythonOperator(
+    task_id='monitor_stepfunctions',
+    python_callable=monitor_step_function,
+    dag=dag)
+
+# use existing
+#j-1KZF8WQTW74JC
+
 
 # Add your steps to the EMR cluster
 step_adder = EmrAddStepsOperator(
     task_id="add_steps",
     job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
-    aws_conn_id="aws_default",
+    aws_conn_id="aws_default_christopherkindl",
     steps=SPARK_STEPS,
     params={ # these params are used to fill the paramterized values in SPARK_STEPS json
-        "BUCKET_NAME": Variable.get('london-housing-webapp', deserialize_json=True)['bucket_name'],
+        "BUCKET_NAME": Variable.get("london-housing-webapp", deserialize_json=True)["bucket_name"],
         "s3_data": s3_data,
         "s3_script": s3_script,
         "s3_clean": s3_clean,
@@ -522,7 +644,8 @@ terminate_emr_cluster = EmrTerminateJobFlowOperator(
 # =============================================================================
 
 # test
-create_schema >> get_twitter_data >> save_result_to_postgres_db
+#create_schema >> get_twitter_data >> save_result_to_postgres_db
+create_emr_cluster >> check_cluster >> step_adder >> step_checker >> terminate_emr_cluster
 #create_schema >> get_flat_file_station_information >> create_emr_cluster >> add_steps >> watch_step >> terminate_emr_cluster >> save_result_to_postgres_db
 
 #For Alternative method

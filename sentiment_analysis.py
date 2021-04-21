@@ -10,27 +10,28 @@ from textblob import TextBlob
 from pyspark.sql.functions import udf
 
 
-# function to set up sentiment analysis logic
-def apply_blob(sentence):
-    temp = TextBlob(sentence).sentiment[0]
-    if temp == 0.0:
-        return 0.0 # Neutral
-    elif temp >= 0.0:
-        return 1.0 # Positive
-    else:
-        return 2.0 # Negative
+
 
 # function to run sentiment analysis
 def sentiment_analysis(input_loc, output_loc):
+    # function to set up sentiment analysis logic
+    def apply_blob(sentence):
+        temp = TextBlob(sentence).sentiment[0]
+        if temp == 0.0:
+            return 0.0 # Neutral
+        elif temp >= 0.0:
+            return 1.0 # Positive
+        else:
+            return 2.0 # Negative
 
     # read input
-    df_raw = spark.read.option("header", True).csv(input_loc)
+    df_raw = spark.read.option('header', True).csv(input_loc)
 
     # assign sentiment function as user defined function
     sentiment = udf(apply_blob)
 
     # apply sentiment function to all tweets
-    df_clean = df_raw.withColumn('sentiment', sentiment(df_raw['tweet']))
+    df_clean = df_raw.withColumn('sentiment', sentiment(df_raw['tweets']))
 
     # save output as csv
     df_clean.write.csv(output_loc)
