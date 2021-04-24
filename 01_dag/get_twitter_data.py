@@ -373,14 +373,15 @@ def save_result_to_postgres_db(**kwargs):
     log.info('Loading row by row into database')
 
     #Load the rows into the PostgresSQL database
-    s = """INSERT INTO london_schema.stations(tweets, date, station) VALUES (%s, %s, %s)"""
+    s = """INSERT INTO london_schema.stations(tweets, date, station, sentiment) VALUES (%s, %s, %s, %s)"""
 
     for index in range(len(df)):
         obj = []
 
         obj.append([df.tweets[index],
                     df.date[index],
-                    df.station[index]])
+                    df.station[index],
+                    df.sentiment[index]])
 
         cursor.executemany(s, obj)
         conn.commit()
@@ -401,7 +402,7 @@ create_emr_cluster = EmrCreateJobFlowOperator(
     dag=dag,
 )
 
-# Add your steps to the EMR cluster
+# add steps to the EMR cluster
 step_adder = EmrAddStepsOperator(
     task_id="add_steps",
     job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
@@ -417,6 +418,7 @@ step_adder = EmrAddStepsOperator(
 )
 
 last_step = len(SPARK_STEPS) - 1 # this value will let the sensor know the last step to watch
+
 # wait for the steps to complete
 step_checker = EmrStepSensor(
     task_id="watch_step",
@@ -437,7 +439,7 @@ terminate_emr_cluster = EmrTerminateJobFlowOperator(
 )
 
 start_data_pipeline = DummyOperator(task_id="start_data_pipeline", dag=dag)
-end_data_pipeline = DummyOperator(task_id = 'end_data_pipeline', dag=dag)
+end_data_pipeline = DummyOperator(task_id = "end_data_pipeline", dag=dag)
 
 
 
@@ -447,4 +449,6 @@ end_data_pipeline = DummyOperator(task_id = 'end_data_pipeline', dag=dag)
 # =============================================================================
 
 
-start_data_pipeline >> create_emr_cluster >> step_adder >> step_checker >> terminate_emr_cluster >> end_data_pipeline
+start_data_pipeline >> get_twitter_data >> create_emr_cluster >> step_adder
+step_adder >> step_checker >> terminate_emr_cluster >> save_result_to_postgres_db
+save_result_to_postgres_db >> end_data_pipeline
