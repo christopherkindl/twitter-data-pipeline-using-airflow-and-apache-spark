@@ -164,8 +164,8 @@ def create_schema(**kwargs):
     sql_queries = """
 
     CREATE SCHEMA IF NOT EXISTS london_schema;
-    DROP TABLE IF EXISTS london_schema.stations;
-    CREATE TABLE IF NOT EXISTS london_schema.stations(
+    DROP TABLE IF EXISTS london_schema.sentiment;
+    CREATE TABLE IF NOT EXISTS london_schema.sentiment(
         "tweets" varchar(256),
         "date" timestamp,
         "station" varchar(256),
@@ -175,7 +175,7 @@ def create_schema(**kwargs):
 
     cursor.execute(sql_queries)
     conn.commit()
-    log.info("Created Schema and Table")
+    log.info("Created schema and table")
 
 
 def get_twitter_data(**kwargs):
@@ -373,7 +373,7 @@ def save_result_to_postgres_db(**kwargs):
     log.info('Loading row by row into database')
 
     #Load the rows into the PostgresSQL database
-    s = """INSERT INTO london_schema.stations(tweets, date, station, sentiment) VALUES (%s, %s, %s, %s)"""
+    s = """INSERT INTO london_schema.sentiment(tweets, date, station, sentiment) VALUES (%s, %s, %s, %s)"""
 
     for index in range(len(df)):
         obj = []
@@ -449,6 +449,6 @@ end_data_pipeline = DummyOperator(task_id = "end_data_pipeline", dag=dag)
 # =============================================================================
 
 
-start_data_pipeline >> get_twitter_data >> create_emr_cluster >> step_adder
+start_data_pipeline >> create_schema >> get_twitter_data >> create_emr_cluster >> step_adder
 step_adder >> step_checker >> terminate_emr_cluster >> save_result_to_postgres_db
 save_result_to_postgres_db >> end_data_pipeline
