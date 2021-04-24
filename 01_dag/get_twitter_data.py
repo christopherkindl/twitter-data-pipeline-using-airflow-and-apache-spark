@@ -168,7 +168,8 @@ def create_schema(**kwargs):
     CREATE TABLE IF NOT EXISTS london_schema.stations(
         "tweets" varchar(256),
         "date" timestamp,
-        "station" varchar(256)
+        "station" varchar(256),
+        "sentiment" numeric
     );
     """
 
