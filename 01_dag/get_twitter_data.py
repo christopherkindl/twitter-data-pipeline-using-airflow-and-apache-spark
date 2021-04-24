@@ -113,7 +113,7 @@ JOB_FLOW_OVERRIDES = {
 SPARK_STEPS = [ # Note the params values are supplied to the operator
 
     {
-        "Name": "run test script",
+        "Name": "run sentiment analysis",
         "ActionOnFailure": "CANCEL_AND_WAIT",
         "HadoopJarStep": {
             "Jar": "command-runner.jar",
@@ -146,7 +146,7 @@ default_args = {
 }
 
 dag = DAG('london-housing-webapp',
-          description='Test runs',
+          description='fetch tweets via API, run sentiment analysis, save results to database',
           schedule_interval='@weekly',
           catchup=False,
           default_args=default_args,
