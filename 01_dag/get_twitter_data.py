@@ -141,7 +141,7 @@ default_args = {
     'postgres_conn_id': 'engineering_groupwork_carina', #change with your credentials
     'retries': 1,
     'retry_delay': timedelta(minutes=5),
-    'output_key': Variable.get('twitter_results',deserialize_json=True)['output_key'],
+    'output_key': Variable.get('twitter_api',deserialize_json=True)['output_key'],
     'db_name': Variable.get('housing_db', deserialize_json=True)['db_name']
 }
 
@@ -220,10 +220,10 @@ def get_twitter_data(**kwargs):
 
     # test twitter api with a test query
     # max number of tweets
-    number_of_tweets = 5
+    number_of_tweets = 50
 
     # max number of stations
-    number_of_stations = 3
+    number_of_stations = 20
 
     # store search results as list items
     tweets = []
@@ -314,7 +314,8 @@ def get_twitter_data(**kwargs):
 
     #Establishing S3 connection
     s3 = S3Hook(kwargs['aws_conn_id'])
-    key = Variable.get('twitter_output', deserialize_json=True)['output_key']
+    key = Variable.get('twitter_api', deserialize_json=True)['output_key']
+    #key = Variable.get('twitter_results', deserialize_json=True)['output_key']
     bucket_name = kwargs['bucket_name']
 
     # Prepare the file to send to s3
@@ -341,12 +342,12 @@ def get_twitter_data(**kwargs):
     return
 
 
-# Saving Dexter file to postgreSQL database
+# saving twitter sentiment results to postgres database
 def save_result_to_postgres_db(**kwargs):
 
     #Establishing connection to S3 bucket
     bucket_name = kwargs['bucket_name']
-    key = Variable.get('twitter_output', deserialize_json=True)['output_key']
+    key = Variable.get('london-housing-webapp_get_csv', deserialize_json=True)['key2']
     s3 = S3Hook(kwargs['aws_conn_id'])
     log.info("Established connection to S3 bucket")
 
@@ -420,7 +421,7 @@ save_result_to_postgres_db = PythonOperator(
 
 )
 
-# create an EMR cluster
+
 create_emr_cluster = EmrCreateJobFlowOperator(
     task_id="create_emr_cluster",
     job_flow_overrides=JOB_FLOW_OVERRIDES,
@@ -429,7 +430,7 @@ create_emr_cluster = EmrCreateJobFlowOperator(
     dag=dag,
 )
 
-# add steps to the EMR cluster
+
 step_adder = EmrAddStepsOperator(
     task_id="add_steps",
     job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
@@ -446,7 +447,7 @@ step_adder = EmrAddStepsOperator(
 
 last_step = len(SPARK_STEPS) - 1 # this value will let the sensor know the last step to watch
 
-# wait for the steps to complete
+
 step_checker = EmrStepSensor(
     task_id="watch_step",
     job_flow_id="{{ task_instance.xcom_pull('create_emr_cluster', key='return_value') }}",
