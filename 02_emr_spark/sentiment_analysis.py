@@ -44,5 +44,3 @@ if __name__ == "__main__":
     df_clean.toPandas().to_csv('s3://london-housing-webapp/sentiment/twitter_sentiment.csv', columns = header, index = False)
 
     spark.stop()
-
-    #sentiment_analysis(input_loc=args.input, output_loc=args.output)
