@@ -139,8 +139,8 @@ default_args = {
     'emr_conn_id' : 'emr_default_christopherkindl', # might change
     'bucket_name': Variable.get('london-housing-webapp', deserialize_json=True)['bucket_name'],
     'postgres_conn_id': 'engineering_groupwork_carina', #change with your credentials
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
+    #'retries': 1,
+    #'retry_delay': timedelta(minutes=5),
     'output_key': Variable.get('twitter_api',deserialize_json=True)['output_key'],
     'db_name': Variable.get('housing_db', deserialize_json=True)['db_name']
 }
