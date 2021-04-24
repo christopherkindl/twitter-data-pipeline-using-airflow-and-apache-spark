@@ -327,7 +327,7 @@ SPARK_STEPS = [ # Note the params values are supplied to the operator
                 "spark-submit",
                 "--deploy-mode",
                 "client",
-                "s3://london-housing-webapp/scripts/sentiment_analysis_test.py",
+                "s3://london-housing-webapp/scripts/sentiment_analysis.py",
             ],
         },
     },
