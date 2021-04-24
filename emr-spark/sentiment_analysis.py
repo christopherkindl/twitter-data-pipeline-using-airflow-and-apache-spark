@@ -34,7 +34,7 @@ if __name__ == "__main__":
     sentiment = udf(apply_vader)
 
     # read csv file as spark df
-    df_raw = spark.read.option('header', True).csv('s3://london-housing-webapp/twitter_output.csv')
+    df_raw = spark.read.option('header', True).csv('s3://london-housing-webapp/api_output/twitter_output.csv')
 
     # apply sentiment function to all tweets
     df_clean = df_raw.withColumn('sentiment', sentiment(df_raw['tweets']))
