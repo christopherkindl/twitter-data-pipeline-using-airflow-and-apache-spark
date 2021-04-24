@@ -392,6 +392,33 @@ def save_result_to_postgres_db(**kwargs):
 # 3. Set up the main configurations of the dag
 # =============================================================================
 
+create_schema = PythonOperator(
+    task_id='create_schema',
+    provide_context=True,
+    python_callable=create_schema,
+    op_kwargs=default_args,
+    dag=dag,
+
+)
+
+get_twitter_data = PythonOperator(
+    task_id='get_twitter_data',
+    provide_context=True,
+    python_callable=get_twitter_data,
+    op_kwargs=default_args,
+    dag=dag,
+
+)
+
+save_result_to_postgres_db = PythonOperator(
+    task_id='save_result_to_postgres_db',
+    provide_context=True,
+    python_callable=save_result_to_postgres_db,
+    trigger_rule=TriggerRule.ALL_SUCCESS,
+    op_kwargs=default_args,
+    dag=dag,
+
+)
 
 # create an EMR cluster
 create_emr_cluster = EmrCreateJobFlowOperator(
