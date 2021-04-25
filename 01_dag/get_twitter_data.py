@@ -112,6 +112,18 @@ JOB_FLOW_OVERRIDES = {
 #
 SPARK_STEPS = [ # Note the params values are supplied to the operator
     {
+        "Name": "move raw data from S3 to HDFS",
+        "ActionOnFailure": "CANCEL_AND_WAIT",
+        "HadoopJarStep": {
+            "Jar": "command-runner.jar",
+            "Args": [
+                "s3-dist-cp",
+                "--src=s3://london-housing-webapp/api_output/twitter_results.csv",
+                "--dest=/twitter",
+            ],
+        },
+    },
+    {
         "Name": "run sentiment analysis",
         "ActionOnFailure": "CANCEL_AND_WAIT",
         "HadoopJarStep": {
@@ -120,24 +132,38 @@ SPARK_STEPS = [ # Note the params values are supplied to the operator
                 "spark-submit",
                 "--deploy-mode",
                 "client",
-                "s3://london-housing-webapp/scripts/sentiment_analysis.py",
+                "s3://london-housing-webapp/scripts/sentiment_analysis_2.py",
             ],
         },
     },
     {
-    "Name": "move data from hdfs to s3",
-    "ActionOnFailure": "TERMINATE_CLUSTER",
-    "HadoopJarStep": {
-      "Jar": "command-runner.jar",
-      "Args": [
-        "s3-dist-cp",
-        "--srcPattern=.*csv",
-        "--src=hdfs:///my_app/my_folder",    #change here
-        "--dest=s3://my_destination_bucket"  #change here
-      ]
-    }
-  }
+        "Name": "move final result from HDFS to S3",
+        "ActionOnFailure": "CANCEL_AND_WAIT",
+        "HadoopJarStep": {
+            "Jar": "command-runner.jar",
+            "Args": [
+                "s3-dist-cp",
+                "--src=/output",
+                "--dest=s3://london-housing-webapp/final/",
+            ],
+        },
+    },
 ]
+
+#     {
+#     "Name": "move data from hdfs to s3",
+#     "ActionOnFailure": "TERMINATE_CLUSTER",
+#     "HadoopJarStep": {
+#       "Jar": "command-runner.jar",
+#       "Args": [
+#         "s3-dist-cp",
+#         "--srcPattern=.*csv",
+#         "--src=hdfs:///my_app/my_folder",    #change here
+#         "--dest=s3://my_destination_bucket"  #change here
+#       ]
+#     }
+#   }
+# ]
 
 
 
@@ -458,63 +484,63 @@ def save_result_to_postgres_db(**kwargs):
 #
 # )
 
-save_result_to_postgres_db = PythonOperator(
-    task_id='save_result_to_postgres_db',
-    provide_context=True,
-    python_callable=save_result_to_postgres_db,
-    trigger_rule=TriggerRule.ALL_SUCCESS,
-    op_kwargs=default_args,
-    dag=dag,
+# save_result_to_postgres_db = PythonOperator(
+#     task_id='save_result_to_postgres_db',
+#     provide_context=True,
+#     python_callable=save_result_to_postgres_db,
+#     trigger_rule=TriggerRule.ALL_SUCCESS,
+#     op_kwargs=default_args,
+#     dag=dag,
+#
+# )
 
+
+create_emr_cluster = EmrCreateJobFlowOperator(
+    task_id="create_emr_cluster",
+    job_flow_overrides=JOB_FLOW_OVERRIDES,
+    aws_conn_id="aws_default_christopherkindl",
+    emr_conn_id="emr_default_christopherkindl",
+    dag=dag,
+)
+#
+#
+step_adder = EmrAddStepsOperator(
+    task_id="add_steps",
+    job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
+    aws_conn_id="aws_default_christopherkindl",
+    steps=SPARK_STEPS,
+    # params={ # these params are used to fill the paramterized values in SPARK_STEPS json
+    #     "BUCKET_NAME": Variable.get("london-housing-webapp", deserialize_json=True)["bucket_name"],
+    #     "s3_data": s3_data,
+    #     "s3_script": s3_script,
+    #     "s3_clean": s3_clean,
+    #},
+    dag=dag,
+)
+#
+last_step = len(SPARK_STEPS) - 1 # this value will let the sensor know the last step to watch
+
+
+step_checker = EmrStepSensor(
+    task_id="watch_step",
+    job_flow_id="{{ task_instance.xcom_pull('create_emr_cluster', key='return_value') }}",
+    step_id="{{ task_instance.xcom_pull(task_ids='add_steps', key='return_value')["
+    + str(last_step)
+    + "] }}",
+    aws_conn_id="aws_default_christopherkindl",
+    dag=dag,
 )
 
-
-# create_emr_cluster = EmrCreateJobFlowOperator(
-#     task_id="create_emr_cluster",
-#     job_flow_overrides=JOB_FLOW_OVERRIDES,
-#     aws_conn_id="aws_default_christopherkindl",
-#     emr_conn_id="emr_default_christopherkindl",
-#     dag=dag,
-# )
+# Terminate the EMR cluster
+terminate_emr_cluster = EmrTerminateJobFlowOperator(
+    task_id="terminate_emr_cluster",
+    job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
+    aws_conn_id="aws_default_christopherkindl",
+    dag=dag,
+)
 #
-#
-# step_adder = EmrAddStepsOperator(
-#     task_id="add_steps",
-#     job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
-#     aws_conn_id="aws_default_christopherkindl",
-#     steps=SPARK_STEPS,
-#     # params={ # these params are used to fill the paramterized values in SPARK_STEPS json
-#     #     "BUCKET_NAME": Variable.get("london-housing-webapp", deserialize_json=True)["bucket_name"],
-#     #     "s3_data": s3_data,
-#     #     "s3_script": s3_script,
-#     #     "s3_clean": s3_clean,
-#     #},
-#     dag=dag,
-# )
-#
-# last_step = len(SPARK_STEPS) - 1 # this value will let the sensor know the last step to watch
-#
-#
-# step_checker = EmrStepSensor(
-#     task_id="watch_step",
-#     job_flow_id="{{ task_instance.xcom_pull('create_emr_cluster', key='return_value') }}",
-#     step_id="{{ task_instance.xcom_pull(task_ids='add_steps', key='return_value')["
-#     + str(last_step)
-#     + "] }}",
-#     aws_conn_id="aws_default_christopherkindl",
-#     dag=dag,
-# )
-#
-# # Terminate the EMR cluster
-# terminate_emr_cluster = EmrTerminateJobFlowOperator(
-#     task_id="terminate_emr_cluster",
-#     job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
-#     aws_conn_id="aws_default_christopherkindl",
-#     dag=dag,
-# )
-#
-# start_data_pipeline = DummyOperator(task_id="start_data_pipeline", dag=dag)
-# end_data_pipeline = DummyOperator(task_id = "end_data_pipeline", dag=dag)
+start_data_pipeline = DummyOperator(task_id="start_data_pipeline", dag=dag)
+end_data_pipeline = DummyOperator(task_id = "end_data_pipeline", dag=dag)
 
 
 
@@ -523,7 +549,10 @@ save_result_to_postgres_db = PythonOperator(
 # 4. Indicating the order of the dags
 # =============================================================================
 
-save_result_to_postgres_db
+
+
+start_data_pipeline >> create_emr_cluster >> step_adder
+step_adder >> step_checker >> terminate_emr_cluster >> end_data_pipeline
 
 # start_data_pipeline >> create_schema >> get_twitter_data >> create_emr_cluster >> step_adder
 # step_adder >> step_checker >> terminate_emr_cluster >> save_result_to_postgres_db
