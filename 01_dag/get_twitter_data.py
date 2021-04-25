@@ -380,10 +380,12 @@ def save_result_to_postgres_db(**kwargs):
     # for o in result.get('CommonPrefixes'):
     # print 'sub folder : ', o.get('Prefix')
 
+    #s3://london-housing-webapp/sunday-test/test_file.csv
+
     # S3 delete everything in `my-bucket`
-    s3 = boto3.resource('s3')
-    csv_name = [obj.key for obj in s3.Bucket('london-housing-webapp').objects.filter(Prefix='sentiment/') if obj.key.startswith('part-')][0]
-    print(csv_name)
+    # s3 = boto3.resource('s3')
+    # csv_name = [obj.key for obj in s3.Bucket('london-housing-webapp').objects.filter(Prefix='sentiment/') if obj.key.startswith('part-')][0]
+    # print(csv_name)
     # # S3 list all keys with the prefix 'photos/'
     # s3 = boto3.resource('s3')
     # for bucket in s3.buckets.all():
@@ -403,7 +405,8 @@ def save_result_to_postgres_db(**kwargs):
     # log.info('passed by csv name')
 
 
-    df = pd.read_csv(io.StringIO(csv_bytes))
+    df = pd.read_csv("s3://london-housing-webapp/sunday-test/*.csv")
+    print(df.head())
     #df = pd.read_csv(io.StringIO(parquet_bytes))
 
     log.info('passing data from S3 bucket')
