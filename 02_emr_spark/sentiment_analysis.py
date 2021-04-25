@@ -10,6 +10,7 @@ analyzer = SentimentIntensityAnalyzer()
 
 
 
+
 if __name__ == "__main__":
     # parser = argparse.ArgumentParser()
     # parser.add_argument('--input', type=str,
@@ -40,7 +41,8 @@ if __name__ == "__main__":
     df_clean = df_raw.withColumn('sentiment', sentiment(df_raw['tweets']))
 
     # convert to pandas df first to avoid folder creation which happens when using spark csv function and export to csv
-    header = ["tweets", "date", "station", "sentiment"]
-    df_clean.toPandas().to_csv('s3://london-housing-webapp/sentiment/twitter_sentiment.csv', columns = header, index = False)
+    df_clean.write.format("csv").mode("overwrite").save("s3://london-housing-webapp/sentiment")
+    #header = ["tweets", "date", "station", "sentiment"]
+    #df_clean.toPandas().to_csv('s3://london-housing-webapp/sentiment/twitter_sentiment.csv', columns = header, index = False)
 
     spark.stop()

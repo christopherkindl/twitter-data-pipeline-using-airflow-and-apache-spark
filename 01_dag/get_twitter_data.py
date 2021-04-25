@@ -347,6 +347,8 @@ def save_result_to_postgres_db(**kwargs):
 
     #Establishing connection to S3 bucket
     bucket_name = kwargs['bucket_name']
+    #key = [file for file in os.listdir('s3://london-housing-webapp/sentiment') if file.startswith('part-')][0]
+    #print(key)
     key = Variable.get('london-housing-webapp_get_csv', deserialize_json=True)['key2']
     s3 = S3Hook(kwargs['aws_conn_id'])
     log.info("Established connection to S3 bucket")
@@ -356,11 +358,21 @@ def save_result_to_postgres_db(**kwargs):
     task_instance = kwargs['ti']
     print(task_instance)
 
+    s3 = boto3.client("s3")
+    all_objects = s3.list_objects(Bucket = 'london-housing-webapp')
+    csv_filename = [file for file in os.listdir(io.StringIO(csv_bytes)) if file.startswith('part-')][0]
+    print(all_objects)
 
-    # Read the content of the key from the bucket
-    csv_bytes = s3.read_key(key, bucket_name)
-    # Read the CSV
-    df = pd.read_csv(io.StringIO(csv_bytes ))#, encoding='utf-8')
+    # csv_bytes = s3.read_key(key, bucket_name)
+    # log.info(csv_bytes)
+    # log.info('passed by csv bytes')
+    # csv_filename = [file for file in os.listdir(io.StringIO(csv_bytes)) if file.startswith('part-')][0]
+    # log.info(csv_name)
+    # log.info('passed by csv name')
+
+
+    df = pd.read_csv(io.StringIO(csv_bytes))
+    #df = pd.read_csv(io.StringIO(parquet_bytes))
 
     log.info('passing data from S3 bucket')
 
@@ -393,23 +405,23 @@ def save_result_to_postgres_db(**kwargs):
 # 3. Set up the main configurations of the dag
 # =============================================================================
 
-create_schema = PythonOperator(
-    task_id='create_schema',
-    provide_context=True,
-    python_callable=create_schema,
-    op_kwargs=default_args,
-    dag=dag,
-
-)
-
-get_twitter_data = PythonOperator(
-    task_id='get_twitter_data',
-    provide_context=True,
-    python_callable=get_twitter_data,
-    op_kwargs=default_args,
-    dag=dag,
-
-)
+# create_schema = PythonOperator(
+#     task_id='create_schema',
+#     provide_context=True,
+#     python_callable=create_schema,
+#     op_kwargs=default_args,
+#     dag=dag,
+#
+# )
+#
+# get_twitter_data = PythonOperator(
+#     task_id='get_twitter_data',
+#     provide_context=True,
+#     python_callable=get_twitter_data,
+#     op_kwargs=default_args,
+#     dag=dag,
+#
+# )
 
 save_result_to_postgres_db = PythonOperator(
     task_id='save_result_to_postgres_db',
@@ -422,52 +434,52 @@ save_result_to_postgres_db = PythonOperator(
 )
 
 
-create_emr_cluster = EmrCreateJobFlowOperator(
-    task_id="create_emr_cluster",
-    job_flow_overrides=JOB_FLOW_OVERRIDES,
-    aws_conn_id="aws_default_christopherkindl",
-    emr_conn_id="emr_default_christopherkindl",
-    dag=dag,
-)
-
-
-step_adder = EmrAddStepsOperator(
-    task_id="add_steps",
-    job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
-    aws_conn_id="aws_default_christopherkindl",
-    steps=SPARK_STEPS,
-    # params={ # these params are used to fill the paramterized values in SPARK_STEPS json
-    #     "BUCKET_NAME": Variable.get("london-housing-webapp", deserialize_json=True)["bucket_name"],
-    #     "s3_data": s3_data,
-    #     "s3_script": s3_script,
-    #     "s3_clean": s3_clean,
-    #},
-    dag=dag,
-)
-
-last_step = len(SPARK_STEPS) - 1 # this value will let the sensor know the last step to watch
-
-
-step_checker = EmrStepSensor(
-    task_id="watch_step",
-    job_flow_id="{{ task_instance.xcom_pull('create_emr_cluster', key='return_value') }}",
-    step_id="{{ task_instance.xcom_pull(task_ids='add_steps', key='return_value')["
-    + str(last_step)
-    + "] }}",
-    aws_conn_id="aws_default_christopherkindl",
-    dag=dag,
-)
-
-# Terminate the EMR cluster
-terminate_emr_cluster = EmrTerminateJobFlowOperator(
-    task_id="terminate_emr_cluster",
-    job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
-    aws_conn_id="aws_default_christopherkindl",
-    dag=dag,
-)
-
-start_data_pipeline = DummyOperator(task_id="start_data_pipeline", dag=dag)
-end_data_pipeline = DummyOperator(task_id = "end_data_pipeline", dag=dag)
+# create_emr_cluster = EmrCreateJobFlowOperator(
+#     task_id="create_emr_cluster",
+#     job_flow_overrides=JOB_FLOW_OVERRIDES,
+#     aws_conn_id="aws_default_christopherkindl",
+#     emr_conn_id="emr_default_christopherkindl",
+#     dag=dag,
+# )
+#
+#
+# step_adder = EmrAddStepsOperator(
+#     task_id="add_steps",
+#     job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
+#     aws_conn_id="aws_default_christopherkindl",
+#     steps=SPARK_STEPS,
+#     # params={ # these params are used to fill the paramterized values in SPARK_STEPS json
+#     #     "BUCKET_NAME": Variable.get("london-housing-webapp", deserialize_json=True)["bucket_name"],
+#     #     "s3_data": s3_data,
+#     #     "s3_script": s3_script,
+#     #     "s3_clean": s3_clean,
+#     #},
+#     dag=dag,
+# )
+#
+# last_step = len(SPARK_STEPS) - 1 # this value will let the sensor know the last step to watch
+#
+#
+# step_checker = EmrStepSensor(
+#     task_id="watch_step",
+#     job_flow_id="{{ task_instance.xcom_pull('create_emr_cluster', key='return_value') }}",
+#     step_id="{{ task_instance.xcom_pull(task_ids='add_steps', key='return_value')["
+#     + str(last_step)
+#     + "] }}",
+#     aws_conn_id="aws_default_christopherkindl",
+#     dag=dag,
+# )
+#
+# # Terminate the EMR cluster
+# terminate_emr_cluster = EmrTerminateJobFlowOperator(
+#     task_id="terminate_emr_cluster",
+#     job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
+#     aws_conn_id="aws_default_christopherkindl",
+#     dag=dag,
+# )
+#
+# start_data_pipeline = DummyOperator(task_id="start_data_pipeline", dag=dag)
+# end_data_pipeline = DummyOperator(task_id = "end_data_pipeline", dag=dag)
 
 
 
@@ -476,7 +488,8 @@ end_data_pipeline = DummyOperator(task_id = "end_data_pipeline", dag=dag)
 # 4. Indicating the order of the dags
 # =============================================================================
 
+save_result_to_postgres_db
 
-start_data_pipeline >> create_schema >> get_twitter_data >> create_emr_cluster >> step_adder
-step_adder >> step_checker >> terminate_emr_cluster >> save_result_to_postgres_db
-save_result_to_postgres_db >> end_data_pipeline
+# start_data_pipeline >> create_schema >> get_twitter_data >> create_emr_cluster >> step_adder
+# step_adder >> step_checker >> terminate_emr_cluster >> save_result_to_postgres_db
+# save_result_to_postgres_db >> end_data_pipeline
