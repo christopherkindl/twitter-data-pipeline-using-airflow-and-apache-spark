@@ -138,7 +138,7 @@ SPARK_STEPS = [ # Note the params values are supplied to the operator
     }
   }
 ]
-]
+
 
 
 
@@ -405,7 +405,7 @@ def save_result_to_postgres_db(**kwargs):
     # log.info('passed by csv name')
 
 
-    df = pd.read_csv("s3://london-housing-webapp/sunday-test/*.csv")
+    df = pd.read_csv("s3://london-housing-webapp/sunday-test/test_file.csv")
     print(df.head())
     #df = pd.read_csv(io.StringIO(parquet_bytes))
 
