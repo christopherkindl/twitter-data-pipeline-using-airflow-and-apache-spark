@@ -111,7 +111,6 @@ JOB_FLOW_OVERRIDES = {
 #
 #
 SPARK_STEPS = [ # Note the params values are supplied to the operator
-
     {
         "Name": "run sentiment analysis",
         "ActionOnFailure": "CANCEL_AND_WAIT",
@@ -125,6 +124,20 @@ SPARK_STEPS = [ # Note the params values are supplied to the operator
             ],
         },
     },
+    {
+    "Name": "move data from hdfs to s3",
+    "ActionOnFailure": "TERMINATE_CLUSTER",
+    "HadoopJarStep": {
+      "Jar": "command-runner.jar",
+      "Args": [
+        "s3-dist-cp",
+        "--srcPattern=.*csv",
+        "--src=hdfs:///my_app/my_folder",    #change here
+        "--dest=s3://my_destination_bucket"  #change here
+      ]
+    }
+  }
+]
 ]
 
 
@@ -220,10 +233,10 @@ def get_twitter_data(**kwargs):
 
     # test twitter api with a test query
     # max number of tweets
-    number_of_tweets = 50
+    number_of_tweets = 20
 
     # max number of stations
-    number_of_stations = 20
+    number_of_stations = 3
 
     # store search results as list items
     tweets = []
@@ -358,10 +371,29 @@ def save_result_to_postgres_db(**kwargs):
     task_instance = kwargs['ti']
     print(task_instance)
 
-    s3 = boto3.client("s3")
-    all_objects = s3.list_objects(Bucket = 'london-housing-webapp')
-    csv_filename = [file for file in os.listdir(io.StringIO(csv_bytes)) if file.startswith('part-')][0]
-    print(all_objects)
+    bucket = kwargs['bucket_name']
+    #Make sure you provide / in the end
+    # prefix = 'sentiment/'
+    #
+    # client = boto3.client('s3')
+    # result = client.list_objects(Bucket=bucket, Prefix=prefix, Delimiter='/')
+    # for o in result.get('CommonPrefixes'):
+    # print 'sub folder : ', o.get('Prefix')
+
+    # S3 delete everything in `my-bucket`
+    s3 = boto3.resource('s3')
+    csv_name = [obj.key for obj in s3.Bucket('london-housing-webapp').objects.filter(Prefix='sentiment/') if obj.key.startswith('part-')][0]
+    print(csv_name)
+    # # S3 list all keys with the prefix 'photos/'
+    # s3 = boto3.resource('s3')
+    # for bucket in s3.buckets.all():
+    #     for obj in bucket.objects.filter(Prefix='photos/'):
+    #         print('{0}:{1}'.format(bucket.name, obj.key))
+    #
+    # s3 = boto3.client("s3")
+    # all_objects = s3.list_objects(Bucket = 'london-housing-webapp')
+    # csv_filename = [file for file in os.listdir(io.StringIO(csv_bytes)) if file.startswith('part-')][0]
+    # print(all_objects)
 
     # csv_bytes = s3.read_key(key, bucket_name)
     # log.info(csv_bytes)
