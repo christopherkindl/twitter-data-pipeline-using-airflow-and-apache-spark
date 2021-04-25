@@ -28,7 +28,7 @@ def sentiment_analysis(input_loc, output_loc):
     # assign sentiment function as an user defined function
     sentiment = udf(apply_vader)
 
-    # perform sentiment analysis 
+    # perform sentiment analysis
     df_clean = df_raw.withColumn('sentiment', sentiment(df_raw['tweets']))
 
     # output as parquet file
@@ -40,4 +40,4 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=str, help="HDFS output", default="/output")
     args = parser.parse_args()
     spark = SparkSession.builder.appName("SentimentAnalysis").getOrCreate()
-    random_text_classifier(input_loc=args.input, output_loc=args.output)
+    sentiment_analysis(input_loc=args.input, output_loc=args.output)
