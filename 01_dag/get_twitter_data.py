@@ -107,9 +107,7 @@ JOB_FLOW_OVERRIDES = {
     #"vpc_id" : :"vpc-06a31dd5f9ebde9ef"
     #"subnet_id" : "vpc-06a31dd5f9ebde9ef",
 }
-#
-#
-#
+
 SPARK_STEPS = [ # Note the params values are supplied to the operator
     {
         "Name": "move raw data from S3 to HDFS",
@@ -150,20 +148,6 @@ SPARK_STEPS = [ # Note the params values are supplied to the operator
     },
 ]
 
-#     {
-#     "Name": "move data from hdfs to s3",
-#     "ActionOnFailure": "TERMINATE_CLUSTER",
-#     "HadoopJarStep": {
-#       "Jar": "command-runner.jar",
-#       "Args": [
-#         "s3-dist-cp",
-#         "--srcPattern=.*csv",
-#         "--src=hdfs:///my_app/my_folder",    #change here
-#         "--dest=s3://my_destination_bucket"  #change here
-#       ]
-#     }
-#   }
-# ]
 
 
 

@@ -7,14 +7,14 @@ import argparse
 # sentiment modules
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 analyzer = SentimentIntensityAnalyzer()
-#from textblob import TextBlob
+
 
 
 # define function to get compounded sentiment score
 def apply_vader(sentence):
     """
-    calculates positivity, negativity and neutrality score of sentence
-    returns compounded sentiment score which represents the total of all subscores
+    1. calculates positivity, negativity and neutrality score of sentence.
+    2. returns compounded sentiment score which represents the total of all subscores.
     """
     vs = analyzer.polarity_scores(sentence)
     return float(round(vs.get('compound'), 2))
