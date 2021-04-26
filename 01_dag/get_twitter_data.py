@@ -364,6 +364,7 @@ def get_twitter_data(**kwargs):
 
     return
 
+# function to filter keys after last date modified in the s3 bucket
 def modified_date_key(bucket_name, key):
     s3 = S3Hook(aws_conn_id='aws_default_christopherkindl')
 
@@ -378,77 +379,38 @@ def save_result_to_postgres_db(**kwargs):
 
     #Establishing connection to S3 bucket
     bucket_name = kwargs['bucket_name']
-    #key = [file for file in os.listdir('s3://london-housing-webapp/sentiment') if file.startswith('part-')][0]
-    #print(key)
-    #key = Variable.get('london-housing-webapp_get_csv', deserialize_json=True)['key2']
     s3 = S3Hook(kwargs['aws_conn_id'])
     log.info("Established connection to S3 bucket")
 
     #s3 = S3Hook(aws_conn_id)
     keys = s3.list_keys(bucket_name, prefix="final/", delimiter="")
 
+    # identify latest date ("last modified") in the S3 subfolder by using max function
     max_date = ""
     find_max = max([modified_date_key(bucket_name, key) for key in keys])
+    log.info("identified value for latest date")
 
+    # create empty variable to assign key later
     key_to_use = ""
 
+    # search corresponding key for the identified max date
     for key in keys:
         datetime_value = modified_date_key(bucket_name, key)
         if datetime_value == find_max:
             key_to_use = key
-
+    log.info("identified key for latest modified file")
     log.info(key_to_use)
-
-
-
-
 
 
     # Get the task instance
     # task_instance = kwargs['ti']
-    # print(task_instance)
-    #
-    # bucket = kwargs['bucket_name']
-    #Make sure you provide / in the end
-    # prefix = 'sentiment/'
-    #
-    # client = boto3.client('s3')
-    # result = client.list_objects(Bucket=bucket, Prefix=prefix, Delimiter='/')
-    # for o in result.get('CommonPrefixes'):
-    # print 'sub folder : ', o.get('Prefix')
 
-    #s3://london-housing-webapp/sunday-test/test_file.csv
-
-    # S3 delete everything in `my-bucket`
-    # s3 = boto3.resource('s3')
-    # csv_name = [obj.key for obj in s3.Bucket('london-housing-webapp').objects.filter(Prefix='sentiment/') if obj.key.startswith('part-')][0]
-    # print(csv_name)
-    # # S3 list all keys with the prefix 'photos/'
-    # s3 = boto3.resource('s3')
-    # for bucket in s3.buckets.all():
-    #     for obj in bucket.objects.filter(Prefix='photos/'):
-    #         print('{0}:{1}'.format(bucket.name, obj.key))
-    #
-    # s3 = boto3.client("s3")
-    # all_objects = s3.list_objects(Bucket = 'london-housing-webapp')
-    # csv_filename = [file for file in os.listdir(io.StringIO(csv_bytes)) if file.startswith('part-')][0]
-    # print(all_objects)
-
-    # csv_bytes = s3.read_key(key, bucket_name)
-    # log.info(csv_bytes)
-    # log.info('passed by csv bytes')
-    # csv_filename = [file for file in os.listdir(io.StringIO(csv_bytes)) if file.startswith('part-')][0]
-    # log.info(csv_name)
-    # log.info('passed by csv name')
-
-
-    # df = pd.read_csv("s3://london-housing-webapp/sunday-test/test_file.csv")
-    # print(df.head())
-    # #df = pd.read_csv(io.StringIO(parquet_bytes))
+    csv_bytes = s3.read_key(key_to_use, bucket_name)
+    df = pd.read_csv(io.StringIO(csv_bytes))
 
     log.info('passing data from S3 bucket')
 
-    # Connect to the PostgreSQL database
+    # connect to the PostgreSQL database
     pg_hook = PostgresHook(postgres_conn_id=kwargs['postgres_conn_id'], schema=kwargs['db_name'])
     conn = pg_hook.get_conn()
     cursor = conn.cursor()
@@ -457,7 +419,7 @@ def save_result_to_postgres_db(**kwargs):
 
     log.info('Loading row by row into database')
 
-    #Load the rows into the PostgresSQL database
+    # load the rows into the PostgresSQL database
     s = """INSERT INTO london_schema.sentiment(tweets, date, station, sentiment) VALUES (%s, %s, %s, %s)"""
 
     for index in range(len(df)):
