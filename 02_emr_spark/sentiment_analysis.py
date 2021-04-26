@@ -32,7 +32,10 @@ def sentiment_analysis(input_loc, output_loc):
     df_clean = df_raw.withColumn('sentiment', sentiment(df_raw['tweets']))
 
     # output as parquet file
-    df_clean.write.mode("overwrite").parquet(output_loc)
+    #df_clean.write.mode("overwrite").parquet(output_loc)
+
+    # output as csv file
+    df_clean.write.mode("overwrite").csv(output_loc)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
