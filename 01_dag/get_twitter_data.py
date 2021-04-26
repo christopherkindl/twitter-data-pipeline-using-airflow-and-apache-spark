@@ -420,15 +420,16 @@ def save_result_to_postgres_db(**kwargs):
     log.info('Loading row by row into database')
 
     # load the rows into the PostgresSQL database
-    s = """INSERT INTO london_schema.sentiment(tweets, date, station, sentiment) VALUES (%s, %s, %s, %s)"""
+    #s = """INSERT INTO london_schema.sentiment(tweets, date, station, sentiment) VALUES (%s, %s, %s, %s)"""
+    s = """INSERT INTO london_schema.sentiment(tweets, date, station) VALUES (%s, %s, %s)"""
 
     for index in range(len(df)):
         obj = []
 
         obj.append([df.tweets[index],
                     df.date[index],
-                    df.station[index],
-                    df.sentiment[index]])
+                    df.station[index]])
+                    #df.sentiment[index]])
 
         cursor.executemany(s, obj)
         conn.commit()
