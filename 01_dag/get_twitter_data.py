@@ -383,15 +383,18 @@ def save_result_to_postgres_db(**kwargs):
     key = Variable.get('london-housing-webapp_get_csv', deserialize_json=True)['key2']
     s3 = S3Hook(kwargs['aws_conn_id'])
     log.info("Established connection to S3 bucket")
-    
+
+    #s3 = S3Hook(aws_conn_id)
+    keys = s3.list_keys(bucket_name, Prefix="/final", Delimiter="")
+
     for key in keys:
         datetime_value = modified_date_key(bucket_name, key)
-
+    print(datetime_value)
     # Get the task instance
-    task_instance = kwargs['ti']
-    print(task_instance)
-
-    bucket = kwargs['bucket_name']
+    # task_instance = kwargs['ti']
+    # print(task_instance)
+    #
+    # bucket = kwargs['bucket_name']
     #Make sure you provide / in the end
     # prefix = 'sentiment/'
     #
@@ -425,9 +428,9 @@ def save_result_to_postgres_db(**kwargs):
     # log.info('passed by csv name')
 
 
-    df = pd.read_csv("s3://london-housing-webapp/sunday-test/test_file.csv")
-    print(df.head())
-    #df = pd.read_csv(io.StringIO(parquet_bytes))
+    # df = pd.read_csv("s3://london-housing-webapp/sunday-test/test_file.csv")
+    # print(df.head())
+    # #df = pd.read_csv(io.StringIO(parquet_bytes))
 
     log.info('passing data from S3 bucket')
 
