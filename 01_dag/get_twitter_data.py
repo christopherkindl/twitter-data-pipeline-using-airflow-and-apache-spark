@@ -385,13 +385,10 @@ def save_result_to_postgres_db(**kwargs):
     log.info("Established connection to S3 bucket")
 
     #s3 = S3Hook(aws_conn_id)
-    keys = s3.list_keys(bucket_name, prefix="final/", suffix=".csv")
+    keys = s3.list_keys(bucket_name, prefix="final/", delimiter="")
 
-
-
-    max_date = 0
+    max_date = ""
     find_max = max([modified_date_key(bucket_name, key) for key in keys])
-
 
     key_to_use = ""
 
@@ -404,7 +401,7 @@ def save_result_to_postgres_db(**kwargs):
 
 
 
-        log.info(datetime_value)
+
 
 
     # Get the task instance
