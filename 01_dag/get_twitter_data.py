@@ -365,7 +365,7 @@ def get_twitter_data(**kwargs):
     return
 
 def modified_date_key(bucket_name, key):
-    s3 = S3Hook(aws_conn_id)
+    s3 = S3Hook(aws_conn_id='aws_default_christopherkindl')
 
     response = s3.get_conn().head_object(Bucket=bucket_name, Key=key)
     datetime_value = response["LastModified"]
@@ -380,16 +380,33 @@ def save_result_to_postgres_db(**kwargs):
     bucket_name = kwargs['bucket_name']
     #key = [file for file in os.listdir('s3://london-housing-webapp/sentiment') if file.startswith('part-')][0]
     #print(key)
-    key = Variable.get('london-housing-webapp_get_csv', deserialize_json=True)['key2']
+    #key = Variable.get('london-housing-webapp_get_csv', deserialize_json=True)['key2']
     s3 = S3Hook(kwargs['aws_conn_id'])
     log.info("Established connection to S3 bucket")
 
     #s3 = S3Hook(aws_conn_id)
-    keys = s3.list_keys(bucket_name, Prefix="/final", Delimiter="")
+    keys = s3.list_keys(bucket_name, prefix="final/", suffix=".csv")
+
+
+
+    max_date = 0
+    find_max = max([modified_date_key(bucket_name, key) for key in keys])
+
+
+    key_to_use = ""
 
     for key in keys:
         datetime_value = modified_date_key(bucket_name, key)
-    print(datetime_value)
+        if datetime_value == find_max:
+            key_to_use = key
+
+    log.info(key_to_use)
+
+
+
+        log.info(datetime_value)
+
+
     # Get the task instance
     # task_instance = kwargs['ti']
     # print(task_instance)
@@ -481,63 +498,63 @@ def save_result_to_postgres_db(**kwargs):
 #
 # )
 
-# save_result_to_postgres_db = PythonOperator(
-#     task_id='save_result_to_postgres_db',
-#     provide_context=True,
-#     python_callable=save_result_to_postgres_db,
-#     trigger_rule=TriggerRule.ALL_SUCCESS,
-#     op_kwargs=default_args,
+save_result_to_postgres_db = PythonOperator(
+    task_id='save_result_to_postgres_db',
+    provide_context=True,
+    python_callable=save_result_to_postgres_db,
+    trigger_rule=TriggerRule.ALL_SUCCESS,
+    op_kwargs=default_args,
+    dag=dag,
+
+)
+
+
+# create_emr_cluster = EmrCreateJobFlowOperator(
+#     task_id="create_emr_cluster",
+#     job_flow_overrides=JOB_FLOW_OVERRIDES,
+#     aws_conn_id="aws_default_christopherkindl",
+#     emr_conn_id="emr_default_christopherkindl",
 #     dag=dag,
-#
 # )
-
-
-create_emr_cluster = EmrCreateJobFlowOperator(
-    task_id="create_emr_cluster",
-    job_flow_overrides=JOB_FLOW_OVERRIDES,
-    aws_conn_id="aws_default_christopherkindl",
-    emr_conn_id="emr_default_christopherkindl",
-    dag=dag,
-)
+# #
+# #
+# step_adder = EmrAddStepsOperator(
+#     task_id="add_steps",
+#     job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
+#     aws_conn_id="aws_default_christopherkindl",
+#     steps=SPARK_STEPS,
+#     # params={ # these params are used to fill the paramterized values in SPARK_STEPS json
+#     #     "BUCKET_NAME": Variable.get("london-housing-webapp", deserialize_json=True)["bucket_name"],
+#     #     "s3_data": s3_data,
+#     #     "s3_script": s3_script,
+#     #     "s3_clean": s3_clean,
+#     #},
+#     dag=dag,
+# )
+# #
+# last_step = len(SPARK_STEPS) - 1 # this value will let the sensor know the last step to watch
 #
 #
-step_adder = EmrAddStepsOperator(
-    task_id="add_steps",
-    job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
-    aws_conn_id="aws_default_christopherkindl",
-    steps=SPARK_STEPS,
-    # params={ # these params are used to fill the paramterized values in SPARK_STEPS json
-    #     "BUCKET_NAME": Variable.get("london-housing-webapp", deserialize_json=True)["bucket_name"],
-    #     "s3_data": s3_data,
-    #     "s3_script": s3_script,
-    #     "s3_clean": s3_clean,
-    #},
-    dag=dag,
-)
+# step_checker = EmrStepSensor(
+#     task_id="watch_step",
+#     job_flow_id="{{ task_instance.xcom_pull('create_emr_cluster', key='return_value') }}",
+#     step_id="{{ task_instance.xcom_pull(task_ids='add_steps', key='return_value')["
+#     + str(last_step)
+#     + "] }}",
+#     aws_conn_id="aws_default_christopherkindl",
+#     dag=dag,
+# )
 #
-last_step = len(SPARK_STEPS) - 1 # this value will let the sensor know the last step to watch
-
-
-step_checker = EmrStepSensor(
-    task_id="watch_step",
-    job_flow_id="{{ task_instance.xcom_pull('create_emr_cluster', key='return_value') }}",
-    step_id="{{ task_instance.xcom_pull(task_ids='add_steps', key='return_value')["
-    + str(last_step)
-    + "] }}",
-    aws_conn_id="aws_default_christopherkindl",
-    dag=dag,
-)
-
-# Terminate the EMR cluster
-terminate_emr_cluster = EmrTerminateJobFlowOperator(
-    task_id="terminate_emr_cluster",
-    job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
-    aws_conn_id="aws_default_christopherkindl",
-    dag=dag,
-)
-#
-start_data_pipeline = DummyOperator(task_id="start_data_pipeline", dag=dag)
-end_data_pipeline = DummyOperator(task_id = "end_data_pipeline", dag=dag)
+# # Terminate the EMR cluster
+# terminate_emr_cluster = EmrTerminateJobFlowOperator(
+#     task_id="terminate_emr_cluster",
+#     job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
+#     aws_conn_id="aws_default_christopherkindl",
+#     dag=dag,
+# )
+# #
+# start_data_pipeline = DummyOperator(task_id="start_data_pipeline", dag=dag)
+# end_data_pipeline = DummyOperator(task_id = "end_data_pipeline", dag=dag)
 
 
 
@@ -546,10 +563,10 @@ end_data_pipeline = DummyOperator(task_id = "end_data_pipeline", dag=dag)
 # 4. Indicating the order of the dags
 # =============================================================================
 
+save_result_to_postgres_db
 
-
-start_data_pipeline >> create_emr_cluster >> step_adder
-step_adder >> step_checker >> terminate_emr_cluster >> end_data_pipeline
+# start_data_pipeline >> create_emr_cluster >> step_adder
+# step_adder >> step_checker >> terminate_emr_cluster >> end_data_pipeline
 
 # start_data_pipeline >> create_schema >> get_twitter_data >> create_emr_cluster >> step_adder
 # step_adder >> step_checker >> terminate_emr_cluster >> save_result_to_postgres_db
