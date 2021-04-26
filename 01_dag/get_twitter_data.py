@@ -364,6 +364,14 @@ def get_twitter_data(**kwargs):
 
     return
 
+def modified_date_key(bucket_name, key):
+    s3 = S3Hook(aws_conn_id)
+
+    response = s3.get_conn().head_object(Bucket=bucket_name, Key=key)
+    datetime_value = response["LastModified"]
+
+    return datetime_value
+
 
 # saving twitter sentiment results to postgres database
 def save_result_to_postgres_db(**kwargs):
@@ -375,7 +383,9 @@ def save_result_to_postgres_db(**kwargs):
     key = Variable.get('london-housing-webapp_get_csv', deserialize_json=True)['key2']
     s3 = S3Hook(kwargs['aws_conn_id'])
     log.info("Established connection to S3 bucket")
-
+    
+    for key in keys:
+        datetime_value = modified_date_key(bucket_name, key)
 
     # Get the task instance
     task_instance = kwargs['ti']
