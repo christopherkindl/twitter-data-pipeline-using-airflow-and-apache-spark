@@ -161,7 +161,7 @@ default_args = {
     'aws_conn_id': 'aws_default_christopherkindl',
     'emr_conn_id' : 'emr_default_christopherkindl', # might change
     'bucket_name': Variable.get('london-housing-webapp', deserialize_json=True)['bucket_name'],
-    'postgres_conn_id': 'engineering_groupwork_carina', #change with your credentials
+    'postgres_conn_id': 'postgres_id_christopherkindl', #change with your credentials
     #'retries': 1,
     #'retry_delay': timedelta(minutes=5),
     'output_key': Variable.get('twitter_api',deserialize_json=True)['output_key'],
