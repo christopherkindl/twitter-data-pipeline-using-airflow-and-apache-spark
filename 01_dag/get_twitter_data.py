@@ -457,16 +457,16 @@ def save_result_to_postgres_db(**kwargs):
     #s = """INSERT INTO london_schema.sentiment(tweets, date, station, sentiment) VALUES (%s, %s, %s, %s)"""
     s = """INSERT INTO london_schema.data_lineage(job_nr, timestamp, step_airflow, source, destination) VALUES (%s, %s, %s, %s, %s)"""
 
-        obj = []
-        obj.append([job_nr=datetime.now().strftime('%Y%m%d'),
-                    timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                    step_airflow=save_result_to_postgres_db.__name__,
-                    source = 's3://' + bucket_name + key_to_use,
-                    destination = 'postgres: london_schema.sentiment'])
-                    #df.sentiment[index]])
+    obj = []
+    obj.append([job_nr=datetime.now().strftime('%Y%m%d'),
+                timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                step_airflow=save_result_to_postgres_db.__name__,
+                source = 's3://' + bucket_name + key_to_use,
+                destination = 'postgres: london_schema.sentiment'])
+                #df.sentiment[index]])
 
-        cursor.executemany(s, obj)
-        conn.commit()
+    cursor.executemany(s, obj)
+    conn.commit()
 
     log.info('update data lineage information')
 
