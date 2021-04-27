@@ -194,6 +194,15 @@ def create_schema(**kwargs):
         "station" varchar(256),
         "sentiment" numeric
     );
+
+    DROP TABLE IF EXISTS london_schema.data_lineage;
+    CREATE TABLE IF NOT EXISTS london_schema.data_lineage(
+        "batch_nr" numeric,
+        "timestamp" timestamp,
+        "step_airflow" varchar(256),
+        "source" varchar(256),
+        "destination" numeric
+    );
     """
 
     cursor.execute(sql_queries)
@@ -436,18 +445,43 @@ def save_result_to_postgres_db(**kwargs):
 
     log.info('Finished saving the data to postgres database')
 
+    pg_hook = PostgresHook(postgres_conn_id=kwargs['postgres_conn_id'], schema=kwargs['db_name'])
+    conn = pg_hook.get_conn()
+    cursor = conn.cursor()
+
+    log.info('Initialised connection')
+
+    log.info('Loading row by row into database')
+
+    # load the rows into the PostgresSQL database
+    #s = """INSERT INTO london_schema.sentiment(tweets, date, station, sentiment) VALUES (%s, %s, %s, %s)"""
+    s = """INSERT INTO london_schema.data_lineage(job_nr, timestamp, step_airflow, source, destination) VALUES (%s, %s, %s, %s, %s)"""
+
+        obj = []
+        obj.append([job_nr=datetime.now().strftime('%Y%m%d'),
+                    timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    step_airflow=save_result_to_postgres_db.__name__,
+                    source = 's3://' + bucket_name + key_to_use,
+                    destination = 'postgres: london_schema.sentiment'])
+                    #df.sentiment[index]])
+
+        cursor.executemany(s, obj)
+        conn.commit()
+
+    log.info('update data lineage information')
+
 # =============================================================================
 # 3. Set up the main configurations of the dag
 # =============================================================================
 
-# create_schema = PythonOperator(
-#     task_id='create_schema',
-#     provide_context=True,
-#     python_callable=create_schema,
-#     op_kwargs=default_args,
-#     dag=dag,
-#
-# )
+create_schema = PythonOperator(
+    task_id='create_schema',
+    provide_context=True,
+    python_callable=create_schema,
+    op_kwargs=default_args,
+    dag=dag,
+
+)
 #
 # get_twitter_data = PythonOperator(
 #     task_id='get_twitter_data',
@@ -522,8 +556,7 @@ save_result_to_postgres_db = PythonOperator(
 # =============================================================================
 # 4. Indicating the order of the dags
 # =============================================================================
-
-save_result_to_postgres_db
+create_schema >> save_result_to_postgres_db
 
 # start_data_pipeline >> create_emr_cluster >> step_adder
 # step_adder >> step_checker >> terminate_emr_cluster >> end_data_pipeline
