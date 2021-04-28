@@ -25,7 +25,10 @@ def apply_vader(sentence):
 def sentiment_analysis(input_loc, output_loc):
 
     # read input
-    df_raw = spark.read.option("header", True).csv(input_loc)
+    df_raw = spark.read.option("header", True).parquet(input_loc, compression='gzip')
+
+    # create rdd
+    #df_rdd=df_raw.rdd
 
     # assign sentiment function as an user defined function
     sentiment = udf(apply_vader)

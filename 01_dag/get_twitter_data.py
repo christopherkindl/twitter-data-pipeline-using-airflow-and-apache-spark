@@ -198,10 +198,11 @@ def create_schema(**kwargs):
     DROP TABLE IF EXISTS london_schema.data_lineage;
     CREATE TABLE IF NOT EXISTS london_schema.data_lineage(
         "batch_nr" numeric,
+        "job_nr" numeric,
         "timestamp" timestamp,
         "step_airflow" varchar(256),
         "source" varchar(256),
-        "destination" numeric
+        "destination" varchar(256)
     );
     """
 
@@ -343,20 +344,16 @@ def get_twitter_data(**kwargs):
     # #convert df into dict
     #data_dict = stations.to_dict('series')
     #log.info('dict created')
-
-    #Establishing S3 connection
+        #Establishing S3 connection
     s3 = S3Hook(kwargs['aws_conn_id'])
     key = Variable.get('twitter_api', deserialize_json=True)['output_key']
-    #key = Variable.get('twitter_results', deserialize_json=True)['output_key']
     bucket_name = kwargs['bucket_name']
 
     # Prepare the file to send to s3
     csv_buffer = io.StringIO()
+    data_csv=df.to_parquet(csv_buffer, compression='gzip')
 
-    #Ensuring the CSV files treats "NAN" as null values
-    data_csv= df.to_csv(csv_buffer, index=False)
-
-    # Save the pandas dataframe as a csv to s3
+    # Save the pandas dataframe as a parquet to s3
     s3 = s3.get_resource_type('s3')
 
     # Get the data type object from pandas dataframe, key and connection object to s3 bucket
@@ -368,7 +365,30 @@ def get_twitter_data(**kwargs):
     # Write the file to S3 bucket in specific path defined in key
     object.put(Body=data)
 
-    log.info('Finished saving the scraped twitter data to s3')
+    log.info('Finished saving the scraped data to s3')
+
+
+
+    # # Prepare the file to send to s3
+    # csv_buffer = io.StringIO()
+    #
+    # #Ensuring the CSV files treats "NAN" as null values
+    # data_csv=df.to_parquet(csv_buffer, compression='gzip')
+    # #data_csv= df.to_csv(csv_buffer, index=False)
+    #
+    # # Save the pandas dataframe as a csv to s3
+    # s3 = s3.get_resource_type('s3')
+    #
+    # # Get the data type object from pandas dataframe, key and connection object to s3 bucket
+    # data = csv_buffer.getvalue()
+    #
+    #
+    # object = s3.Object(bucket_name, key)
+    #
+    # # Write the file to S3 bucket in specific path defined in key
+    # object.put(Body=data)
+    #
+    # log.info('Finished saving the scraped twitter data to s3')
 
 
     return
@@ -385,6 +405,10 @@ def modified_date_key(bucket_name, key):
 
 # saving twitter sentiment results to postgres database
 def save_result_to_postgres_db(**kwargs):
+
+    # document step nr
+    num = 0
+    job_nr = num + 1
 
     #Establishing connection to S3 bucket
     bucket_name = kwargs['bucket_name']
@@ -455,16 +479,17 @@ def save_result_to_postgres_db(**kwargs):
 
     # load the rows into the PostgresSQL database
     #s = """INSERT INTO london_schema.sentiment(tweets, date, station, sentiment) VALUES (%s, %s, %s, %s)"""
-    s = """INSERT INTO london_schema.data_lineage(job_nr, timestamp, step_airflow, source, destination) VALUES (%s, %s, %s, %s, %s)"""
+    s = """INSERT INTO london_schema.data_lineage(batch_nr, job_nr, timestamp, step_airflow, source, destination) VALUES (%s, %s, %s, %s, %s, %s)"""
 
-    job_nr=datetime.now().strftime('%Y%m%d'),
+    batch_nr=datetime.now().strftime('%Y%m%d')
     timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    step_airflow=save_result_to_postgres_db.__name__
-    source = 's3://' + bucket_name + key_to_use
+    step_airflow="save_result_to_postgres_db" #.__name__
+    source = 's3://' + bucket_name + "/" + key_to_use
     destination = 'postgres: london_schema.sentiment'
 
     obj = []
-    obj.append([job_nr,
+    obj.append([batch_nr,
+                job_nr,
                 timestamp,
                 step_airflow,
                 source,
