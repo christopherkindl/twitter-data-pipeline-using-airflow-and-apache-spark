@@ -56,6 +56,7 @@ log = logging.getLogger(__name__)
 JOB_FLOW_OVERRIDES = {
     "Name": "sentiment_analysis",
     "ReleaseLabel": "emr-5.33.0",
+    "LogUri": "s3n://london-housing-webapp/logs/",
     "BootstrapActions": [
         {'Name': 'install python libraries',
                 'ScriptBootstrapAction': {
@@ -104,8 +105,6 @@ JOB_FLOW_OVERRIDES = {
     },
     "JobFlowRole": "EMR_EC2_DefaultRole",
     "ServiceRole": "EMR_DefaultRole",
-    #"vpc_id" : :"vpc-06a31dd5f9ebde9ef"
-    #"subnet_id" : "vpc-06a31dd5f9ebde9ef",
 }
 
 SPARK_STEPS = [ # Note the params values are supplied to the operator
@@ -116,8 +115,8 @@ SPARK_STEPS = [ # Note the params values are supplied to the operator
             "Jar": "command-runner.jar",
             "Args": [
                 "s3-dist-cp",
-                "--src=s3://london-housing-webapp/api_output/twitter_results.csv",
-                "--dest=/twitter",
+                "--src=s3://london-housing-webapp/api_output/df_2.parquet",
+                "--dest=/twitter_results",
             ],
         },
     },
@@ -350,7 +349,7 @@ def get_twitter_data(**kwargs):
     bucket_name = kwargs['bucket_name']
 
     # Prepare the file to send to s3
-    csv_buffer = io.StringIO()
+    csv_buffer = io.BytesIO()
     data_csv=df.to_parquet(csv_buffer, compression='gzip')
 
     # Save the pandas dataframe as a parquet to s3
@@ -438,8 +437,11 @@ def save_result_to_postgres_db(**kwargs):
     # Get the task instance
     # task_instance = kwargs['ti']
 
-    csv_bytes = s3.read_key(key_to_use, bucket_name)
-    df = pd.read_csv(io.StringIO(csv_bytes))
+    s3 = s3.get_resource_type('s3')
+    response = s3.Object(bucket_name, key_to_use).get()
+    bytes_object = response['Body'].read()
+    print(bytes_object)
+    df = pd.read_parquet(bytes_object)
 
     log.info('passing data from S3 bucket')
 
@@ -454,15 +456,15 @@ def save_result_to_postgres_db(**kwargs):
 
     # load the rows into the PostgresSQL database
     #s = """INSERT INTO london_schema.sentiment(tweets, date, station, sentiment) VALUES (%s, %s, %s, %s)"""
-    s = """INSERT INTO london_schema.sentiment(tweets, date, station) VALUES (%s, %s, %s)"""
+    s = """INSERT INTO london_schema.sentiment(tweets, date, station, sentiment) VALUES (%s, %s, %s, %s)"""
 
     for index in range(len(df)):
         obj = []
 
         obj.append([df.tweets[index],
                     df.date[index],
-                    df.station[index]])
-                    #df.sentiment[index]])
+                    df.station[index],
+                    df.sentiment[index]])
 
         cursor.executemany(s, obj)
         conn.commit()
@@ -505,15 +507,15 @@ def save_result_to_postgres_db(**kwargs):
 # 3. Set up the main configurations of the dag
 # =============================================================================
 
-create_schema = PythonOperator(
-    task_id='create_schema',
-    provide_context=True,
-    python_callable=create_schema,
-    op_kwargs=default_args,
-    dag=dag,
-
-)
+# create_schema = PythonOperator(
+#     task_id='create_schema',
+#     provide_context=True,
+#     python_callable=create_schema,
+#     op_kwargs=default_args,
+#     dag=dag,
 #
+# )
+
 # get_twitter_data = PythonOperator(
 #     task_id='get_twitter_data',
 #     provide_context=True,
@@ -577,7 +579,7 @@ save_result_to_postgres_db = PythonOperator(
 #     aws_conn_id="aws_default_christopherkindl",
 #     dag=dag,
 # )
-# #
+#
 # start_data_pipeline = DummyOperator(task_id="start_data_pipeline", dag=dag)
 # end_data_pipeline = DummyOperator(task_id = "end_data_pipeline", dag=dag)
 
@@ -587,7 +589,11 @@ save_result_to_postgres_db = PythonOperator(
 # =============================================================================
 # 4. Indicating the order of the dags
 # =============================================================================
-create_schema >> save_result_to_postgres_db
+
+
+# create_schema >> save_result_to_postgres_db
+
+save_result_to_postgres_db
 
 # start_data_pipeline >> create_emr_cluster >> step_adder
 # step_adder >> step_checker >> terminate_emr_cluster >> end_data_pipeline

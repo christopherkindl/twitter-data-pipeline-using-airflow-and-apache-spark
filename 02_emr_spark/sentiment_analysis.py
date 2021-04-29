@@ -2,8 +2,8 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import udf
 
-#
-import parser
+# parser
+import argparse
 
 
 # sentiment modules
@@ -25,10 +25,8 @@ def apply_vader(sentence):
 def sentiment_analysis(input_loc, output_loc):
 
     # read input
-    df_raw = spark.read.option("header", True).parquet(input_loc, compression='gzip')
-
-    # create rdd
-    #df_rdd=df_raw.rdd
+    df_raw = spark.read.option("header", True).parquet(input_loc)
+    #df_raw = spark.read.option("header", True).parquet(input_loc, compression='gzip')
 
     # assign sentiment function as an user defined function
     sentiment = udf(apply_vader)
@@ -36,15 +34,12 @@ def sentiment_analysis(input_loc, output_loc):
     # perform sentiment analysis
     df_clean = df_raw.withColumn('sentiment', sentiment(df_raw['tweets']))
 
-    # output as parquet file
-    #df_clean.write.mode("overwrite").parquet(output_loc)
-
     # output as csv file
-    df_clean.write.mode("overwrite").csv(output_loc)
+    df_clean.write.mode("overwrite").parquet(output_loc)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", type=str, help="HDFS input", default="/twitter")
+    parser.add_argument("--input", type=str, help="HDFS input", default="/twitter_results")
     parser.add_argument("--output", type=str, help="HDFS output", default="/output")
     args = parser.parse_args()
     spark = SparkSession.builder.appName("SentimentAnalysis").getOrCreate()

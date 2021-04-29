@@ -2,7 +2,6 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import udf
 
-#
 import parser
 
 
@@ -41,9 +40,12 @@ def sentiment_analysis(input_loc, output_loc):
     df_clean.write.mode("overwrite").csv(output_loc)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--input", type=str, help="HDFS input", default="/twitter")
-    parser.add_argument("--output", type=str, help="HDFS output", default="/output")
-    args = parser.parse_args()
+    #parser = argparse.ArgumentParser()
+    #parser.add_argument("--input", type=str, help="HDFS input", default="/twitter")
+    #parser.add_argument("--output", type=str, help="HDFS output", default="/output")
+    input = "s3://london-housing-webapp/api_output/df_2.parquet"
+    output = "s3://london-housing-webapp/00-wed/"
+    #args = parser.parse_args()
     spark = SparkSession.builder.appName("SentimentAnalysis").getOrCreate()
-    sentiment_analysis(input_loc=args.input, output_loc=args.output)
+    sentiment_analysis(input_loc=input, output_loc=output)
+    #sentiment_analysis(input_loc=args.input, output_loc=args.output)
