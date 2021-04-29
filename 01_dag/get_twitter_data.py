@@ -188,7 +188,7 @@ def create_schema(**kwargs):
     CREATE SCHEMA IF NOT EXISTS london_schema;
     DROP TABLE IF EXISTS london_schema.sentiment;
     CREATE TABLE IF NOT EXISTS london_schema.sentiment(
-        "tweets" varchar(256),
+        "tweets" varchar,
         "date" timestamp,
         "station" varchar(256),
         "sentiment" numeric
@@ -441,7 +441,7 @@ def save_result_to_postgres_db(**kwargs):
     response = s3.Object(bucket_name, key_to_use).get()
     bytes_object = response['Body'].read()
     print(bytes_object)
-    df = pd.read_parquet(bytes_object)
+    df = pd.read_parquet(io.BytesIO(bytes_object))
 
     log.info('passing data from S3 bucket')
 
