@@ -307,71 +307,7 @@ def get_twitter_data(**kwargs):
 
     log.info('query results converted into df')
 
-    # solve compatibility issues with notebooks and RunTime errors
-    #import nest_asyncio
-    #nest_asyncio.apply()
-
-    # c = twint.Config()
-    #
-    # # search London tweets
-    # c.Limit = 2
-    # c.Search = "London"
-    #
-    # # save to df
-    # c.Pandas = True
-    #
-    # # run
-    # twint.run.Search(c)
-    #
-    # # create dataframe and assign to total dataframe
-    # df = twint.storage.panda.Tweets_df[["id", "tweet"]]
-
-    # # configure twint and fetch tweets from particular subway station
-    # c = twint.Config()
-    #
-    # for index in range(len(stations[:5])):
-    #
-    #     # limit tweets to 20 (1 unit represents 20 tweets)
-    #     c.Limit = 2
-    #
-    #     # hide console output
-    #     c.Hide_output = True
-    #
-    #     # only scrape text tweets
-    #     c.Images = False
-    #     c.Videos = False
-    #
-    #     # scrape tweets from a radius of 1km around a particular subway station
-    #     c.Geo= str(stations['Latitude'][index])+','+str(stations['Longitude'][index])+', 1km'
-    #
-    #     # only scrape English tweets
-    #     c.Lang = "en"
-    #
-    #     # only tweets since last week
-    #     ## make it dynamic so that it automatically calculates -7 days
-    #     c.Since = '2020-08-01'
-    #
-    #     # save in df format
-    #     c.Pandas = True
-    #
-    #     # run
-    #     twint.run.Search(c)
-    #
-    #     # create dataframe and assign to total dataframe
-    #     df = twint.storage.panda.Tweets_df[["id", "tweet"]]
-    #
-    #     print(len(twint.storage.panda.Tweets_df))
-    #
-    #     df_total = df_total.append(df)
-    #
-    #     print('Scraped tweets around '+str(stations['Station'][index]))
-
-    #df_total = df
-
-    # #convert df into dict
-    #data_dict = stations.to_dict('series')
-    #log.info('dict created')
-        #Establishing S3 connection
+    #Establishing S3 connection
     s3 = S3Hook(kwargs['aws_conn_id'])
     key = Variable.get('twitter_api', deserialize_json=True)['output_key']
     bucket_name = kwargs['bucket_name']
@@ -385,8 +321,6 @@ def get_twitter_data(**kwargs):
 
     # Get the data type object from pandas dataframe, key and connection object to s3 bucket
     data = csv_buffer.getvalue()
-
-
     object = s3.Object(bucket_name, key)
 
     # Write the file to S3 bucket in specific path defined in key
@@ -394,6 +328,43 @@ def get_twitter_data(**kwargs):
 
     log.info('Finished saving the scraped data to s3')
 
+    return
+
+def summarised_data_lineage_spark(**kwargs):
+
+    # document step nr
+    num = 0
+    job_nr = num + 1
+
+    # connect to the PostgreSQL database
+    pg_hook = PostgresHook(postgres_conn_id=kwargs['postgres_conn_id'], schema=kwargs['db_name'])
+    conn = pg_hook.get_conn()
+    cursor = conn.cursor()
+
+    log.info('Initialised connection')
+
+    log.info('Loading row by row into database')
+
+    s = """INSERT INTO london_schema.data_lineage(batch_nr, job_nr, timestamp, step_airflow, source, destination) VALUES (%s, %s, %s, %s, %s, %s)"""
+
+    batch_nr=datetime.now().strftime('%Y%m%d')
+    timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    step_airflow="all_spark_jobs"
+    source = 's3://' + bucket_name + '/' + Variable.get('twitter_api', deserialize_json=True)['output_key']
+    destination = 's3://' + bucket_name + '/' + 'sentiment/' + ', ' + 's3://' + bucket_name + '/' + 'topics/'
+
+    obj = []
+    obj.append([batch_nr,
+                job_nr,
+                timestamp,
+                step_airflow,
+                source,
+                destination])
+
+    cursor.executemany(s, obj)
+    conn.commit()
+
+    log.info('update data lineage information')
 
     return
 
@@ -411,7 +382,6 @@ def modified_date_key(bucket_name, key):
 def save_result_to_postgres_db(**kwargs):
 
     # document step nr
-    num = 0
     job_nr = num + 1
 
     # establish connection to S3 bucket
@@ -554,14 +524,14 @@ create_schema = PythonOperator(
 
 )
 
-# get_twitter_data = PythonOperator(
-#     task_id='get_twitter_data',
-#     provide_context=True,
-#     python_callable=get_twitter_data,
-#     op_kwargs=default_args,
-#     dag=dag,
-#
-# )
+get_twitter_data = PythonOperator(
+    task_id='get_twitter_data',
+    provide_context=True,
+    python_callable=get_twitter_data,
+    op_kwargs=default_args,
+    dag=dag,
+
+)
 
 save_result_to_postgres_db = PythonOperator(
     task_id='save_result_to_postgres_db',
@@ -573,53 +543,56 @@ save_result_to_postgres_db = PythonOperator(
 
 )
 
+create_emr_cluster = EmrCreateJobFlowOperator(
+    task_id="create_emr_cluster",
+    job_flow_overrides=JOB_FLOW_OVERRIDES,
+    aws_conn_id="aws_default_christopherkindl",
+    emr_conn_id="emr_default_christopherkindl",
+    dag=dag,
+)
 
-# create_emr_cluster = EmrCreateJobFlowOperator(
-#     task_id="create_emr_cluster",
-#     job_flow_overrides=JOB_FLOW_OVERRIDES,
-#     aws_conn_id="aws_default_christopherkindl",
-#     emr_conn_id="emr_default_christopherkindl",
-#     dag=dag,
-# )
-# #
-# #
-# step_adder = EmrAddStepsOperator(
-#     task_id="add_steps",
-#     job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
-#     aws_conn_id="aws_default_christopherkindl",
-#     steps=SPARK_STEPS,
-#     # params={ # these params are used to fill the paramterized values in SPARK_STEPS json
-#     #     "BUCKET_NAME": Variable.get("london-housing-webapp", deserialize_json=True)["bucket_name"],
-#     #     "s3_data": s3_data,
-#     #     "s3_script": s3_script,
-#     #     "s3_clean": s3_clean,
-#     #},
-#     dag=dag,
-# )
-# #
-# last_step = len(SPARK_STEPS) - 1 # this value will let the sensor know the last step to watch
-#
-#
-# step_checker = EmrStepSensor(
-#     task_id="watch_step",
-#     job_flow_id="{{ task_instance.xcom_pull('create_emr_cluster', key='return_value') }}",
-#     step_id="{{ task_instance.xcom_pull(task_ids='add_steps', key='return_value')["
-#     + str(last_step)
-#     + "] }}",
-#     aws_conn_id="aws_default_christopherkindl",
-#     dag=dag,
-# )
-#
-# # Terminate the EMR cluster
-# terminate_emr_cluster = EmrTerminateJobFlowOperator(
-#     task_id="terminate_emr_cluster",
-#     job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
-#     aws_conn_id="aws_default_christopherkindl",
-#     dag=dag,
-# )
-#
-# start_data_pipeline = DummyOperator(task_id="start_data_pipeline", dag=dag)
-# end_data_pipeline = DummyOperator(task_id = "end_data_pipeline", dag=dag)
+
+step_adder = EmrAddStepsOperator(
+    task_id="add_steps",
+    job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
+    aws_conn_id="aws_default_christopherkindl",
+    steps=SPARK_STEPS,
+    dag=dag,
+)
+
+last_step = len(SPARK_STEPS) - 1 # this value will let the sensor know the last step to watch
+
+
+step_checker = EmrStepSensor(
+    task_id="watch_step",
+    job_flow_id="{{ task_instance.xcom_pull('create_emr_cluster', key='return_value') }}",
+    step_id="{{ task_instance.xcom_pull(task_ids='add_steps', key='return_value')["
+    + str(last_step)
+    + "] }}",
+    aws_conn_id="aws_default_christopherkindl",
+    dag=dag,
+)
+
+# terminate the EMR cluster
+terminate_emr_cluster = EmrTerminateJobFlowOperator(
+    task_id="terminate_emr_cluster",
+    job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
+    aws_conn_id="aws_default_christopherkindl",
+    dag=dag,
+)
+
+summarised_data_lineage_spark = PythonOperator(
+    task_id='summarised_data_lineage_spark',
+    provide_context=True,
+    python_callable=summarised_data_lineage_spark,
+    trigger_rule=TriggerRule.ALL_SUCCESS,
+    op_kwargs=default_args,
+    dag=dag,
+
+)
+
+start_data_pipeline = DummyOperator(task_id="start_data_pipeline", dag=dag)
+end_data_pipeline = DummyOperator(task_id = "end_data_pipeline", dag=dag)
 
 
 
