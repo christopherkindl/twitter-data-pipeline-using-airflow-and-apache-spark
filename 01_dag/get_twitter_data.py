@@ -1,3 +1,4 @@
+# Airflow specific modules
 from airflow.operators.dummy_operator import DummyOperator
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
@@ -10,37 +11,21 @@ from airflow.contrib.operators.emr_add_steps_operator import EmrAddStepsOperator
 from airflow.contrib.operators.emr_terminate_job_flow_operator import EmrTerminateJobFlowOperator
 from airflow.contrib.sensors.emr_step_sensor import EmrStepSensor
 from airflow.hooks.base_hook import BaseHook
-import boto3, json, pprint, requests, textwrap, time, logging, requests
+
+# other modules
+import boto3, json, pprint, requests, textwrap, time, logging
 import os
 from datetime import datetime
 from typing import Optional, Union
-
 from typing import Iterable
-
-import ast
-import time
-from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
-from airflow.contrib.hooks.emr_hook import EmrHook
-from botocore.exceptions import ClientError
-from airflow.exceptions import AirflowException
-from typing import Dict, List, Optional, Set, Any, Callable, Generator, Union
-
-#from mwaalib.emr_submit_and_monitor_step import EmrSubmitAndMonitorStepOperator
-#import mwaalib.workflow_lib as etlclient
-
 from datetime import datetime
 from datetime import timedelta
 import logging
 import pandas as pd
 import numpy as np
 import re
-import requests
-import json
 import io
-import os
 import shlex
-#import twint
 import tweepy
 
 
@@ -233,6 +218,7 @@ def create_schema(**kwargs):
     );
     """
 
+    # execute query
     cursor.execute(sql_queries)
     conn.commit()
     log.info("created schema and table")
@@ -550,7 +536,7 @@ def save_result_to_postgres_db(**kwargs):
 
     batch_nr=datetime.now().strftime('%Y%m%d')
     timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    step_airflow="save_result_to_postgres_db" #.__name__
+    step_airflow="save_result_to_postgres_db" 
     source = 's3://' + bucket_name + '/' + key_sentiment + ', ' + 's3://' + bucket_name + '/' + key_topics
     destination = 'postgres: london_schema.sentiment, london_schema.topics'
 
@@ -655,19 +641,11 @@ end_data_pipeline = DummyOperator(task_id = "end_data_pipeline", dag=dag)
 
 
 
-
 # =============================================================================
 # 4. Indicating the order of the dags
 # =============================================================================
 
 
-summarised_data_lineage_spark
-
-
-
-# start_data_pipeline >> create_emr_cluster >> step_adder
-# step_adder >> step_checker >> terminate_emr_cluster >> end_data_pipeline
-
-# start_data_pipeline >> create_schema >> get_twitter_data >> create_emr_cluster >> step_adder
-# step_adder >> step_checker >> terminate_emr_cluster >> save_result_to_postgres_db
-# save_result_to_postgres_db >> end_data_pipeline
+start_data_pipeline >> create_schema >> get_twitter_data >> create_emr_cluster >> step_adder
+step_adder >> step_checker >> terminate_emr_cluster >> summarised_data_lineage_spark >> save_result_to_postgres_db
+save_result_to_postgres_db >> end_data_pipeline
