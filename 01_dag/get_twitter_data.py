@@ -183,24 +183,20 @@ default_args = {
     'email_on_failure': True,
     'email_on_retry': False,
     'aws_conn_id': 'aws_default_christopherkindl',
-    'emr_conn_id' : 'emr_default_christopherkindl', # might change
+    'emr_conn_id' : 'emr_default_christopherkindl',
     'bucket_name': Variable.get('london-housing-webapp', deserialize_json=True)['bucket_name'],
-    'postgres_conn_id': 'postgres_id_christopherkindl', #change with your credentials
-    #'retries': 1,
-    #'retry_delay': timedelta(minutes=5),
+    'postgres_conn_id': 'postgres_id_christopherkindl',
     'output_key': Variable.get('twitter_api',deserialize_json=True)['output_key'],
     'db_name': Variable.get('housing_db', deserialize_json=True)['db_name']
 }
 
 dag = DAG('london-housing-webapp',
-          description='fetch tweets via API, run sentiment analysis, save results to database',
+          description='fetch tweets via API, run sentiment and topic analysis via Spark, save results to PostgreSQL',
           schedule_interval='@weekly',
           catchup=False,
           default_args=default_args,
           max_active_runs=1)
 
-# region = etlclient.detect_running_region()
-# etlclient.client(region_name=region)
 
 # Creating schema if inexistant
 def create_schema(**kwargs):
@@ -217,6 +213,13 @@ def create_schema(**kwargs):
         "date" timestamp,
         "station" varchar(256),
         "sentiment" numeric
+    );
+
+    CREATE SCHEMA IF NOT EXISTS london_schema;
+    DROP TABLE IF EXISTS london_schema.topics;
+    CREATE TABLE IF NOT EXISTS london_schema.topics(
+        "date" timestamp,
+        "topics" varchar,
     );
 
     DROP TABLE IF EXISTS london_schema.data_lineage;
@@ -440,7 +443,7 @@ def save_result_to_postgres_db(**kwargs):
     log.info("Established connection to S3 bucket")
 
     #s3 = S3Hook(aws_conn_id)
-    keys = s3.list_keys(bucket_name, prefix="final/", delimiter="")
+    keys = s3.list_keys(bucket_name, prefix="sentiment/", delimiter="")
 
     # identify latest date ("last modified") in the S3 subfolder by using max function
     max_date = ""
@@ -468,7 +471,7 @@ def save_result_to_postgres_db(**kwargs):
     print(bytes_object)
     df = pd.read_parquet(io.BytesIO(bytes_object))
 
-    log.info('passing data from S3 bucket')
+    log.info('passing sentiment data from S3 bucket')
 
     # connect to the PostgreSQL database
     pg_hook = PostgresHook(postgres_conn_id=kwargs['postgres_conn_id'], schema=kwargs['db_name'])
@@ -494,18 +497,52 @@ def save_result_to_postgres_db(**kwargs):
         cursor.executemany(s, obj)
         conn.commit()
 
-    log.info('Finished saving the data to postgres database')
+    log.info('Finished saving the sentiment data to postgres database')
 
-    pg_hook = PostgresHook(postgres_conn_id=kwargs['postgres_conn_id'], schema=kwargs['db_name'])
-    conn = pg_hook.get_conn()
-    cursor = conn.cursor()
+    #s3 = S3Hook(aws_conn_id)
+    keys = s3.list_keys(bucket_name, prefix="topics/", delimiter="")
 
-    log.info('Initialised connection')
+    # identify latest date ("last modified") in the S3 subfolder by using max function
+    max_date = ""
+    find_max = max([modified_date_key(bucket_name, key) for key in keys])
+    log.info("identified value for latest date")
+
+    # create empty variable to assign key later
+    key_to_use = ""
+
+    # search corresponding key for the identified max date
+    for key in keys:
+        datetime_value = modified_date_key(bucket_name, key)
+        if datetime_value == find_max:
+            key_to_use = key
+    log.info("identified key for latest modified file")
+    log.info(key_to_use)
+
+    s3 = s3.get_resource_type('s3')
+    response = s3.Object(bucket_name, key_to_use).get()
+    bytes_object = response['Body'].read()
+    print(bytes_object)
+    df = pd.read_parquet(io.BytesIO(bytes_object))
+
+    log.info('passing sentiment data from S3 bucket')
 
     log.info('Loading row by row into database')
 
-    # load the rows into the PostgresSQL database
-    #s = """INSERT INTO london_schema.sentiment(tweets, date, station, sentiment) VALUES (%s, %s, %s, %s)"""
+
+    s = """INSERT INTO london_schema.topics(date, topics) VALUES (%s, %s)"""
+
+    for index in range(len(df)):
+        obj = []
+
+        obj.append([df.date[index],
+                    df.topics[index]])
+
+        cursor.executemany(s, obj)
+        conn.commit()
+
+    log.info('Finished saving the topic analysis data to postgres database')
+
+
     s = """INSERT INTO london_schema.data_lineage(batch_nr, job_nr, timestamp, step_airflow, source, destination) VALUES (%s, %s, %s, %s, %s, %s)"""
 
     batch_nr=datetime.now().strftime('%Y%m%d')
