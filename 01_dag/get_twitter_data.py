@@ -378,7 +378,7 @@ def get_twitter_data(**kwargs):
 
     # Prepare the file to send to s3
     csv_buffer = io.BytesIO()
-    data_csv=df.to_parquet(csv_buffer, compression='gzip')
+    data_csv=df.to_parquet(csv_buffer)
 
     # Save the pandas dataframe as a parquet to s3
     s3 = s3.get_resource_type('s3')
@@ -393,29 +393,6 @@ def get_twitter_data(**kwargs):
     object.put(Body=data)
 
     log.info('Finished saving the scraped data to s3')
-
-
-
-    # # Prepare the file to send to s3
-    # csv_buffer = io.StringIO()
-    #
-    # #Ensuring the CSV files treats "NAN" as null values
-    # data_csv=df.to_parquet(csv_buffer, compression='gzip')
-    # #data_csv= df.to_csv(csv_buffer, index=False)
-    #
-    # # Save the pandas dataframe as a csv to s3
-    # s3 = s3.get_resource_type('s3')
-    #
-    # # Get the data type object from pandas dataframe, key and connection object to s3 bucket
-    # data = csv_buffer.getvalue()
-    #
-    #
-    # object = s3.Object(bucket_name, key)
-    #
-    # # Write the file to S3 bucket in specific path defined in key
-    # object.put(Body=data)
-    #
-    # log.info('Finished saving the scraped twitter data to s3')
 
 
     return
@@ -437,7 +414,7 @@ def save_result_to_postgres_db(**kwargs):
     num = 0
     job_nr = num + 1
 
-    #Establishing connection to S3 bucket
+    # establish connection to S3 bucket
     bucket_name = kwargs['bucket_name']
     s3 = S3Hook(kwargs['aws_conn_id'])
     log.info("Established connection to S3 bucket")
