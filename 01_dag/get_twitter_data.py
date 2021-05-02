@@ -336,6 +336,9 @@ def summarised_data_lineage_spark(**kwargs):
     num = 0
     job_nr = num + 1
 
+    # get bucket name
+    bucket_name = kwargs['bucket_name']
+
     # connect to the PostgreSQL database
     pg_hook = PostgresHook(postgres_conn_id=kwargs['postgres_conn_id'], schema=kwargs['db_name'])
     conn = pg_hook.get_conn()
@@ -347,12 +350,14 @@ def summarised_data_lineage_spark(**kwargs):
 
     s = """INSERT INTO london_schema.data_lineage(batch_nr, job_nr, timestamp, step_airflow, source, destination) VALUES (%s, %s, %s, %s, %s, %s)"""
 
+    # assign information
     batch_nr=datetime.now().strftime('%Y%m%d')
     timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     step_airflow="all_spark_jobs"
     source = 's3://' + bucket_name + '/' + Variable.get('twitter_api', deserialize_json=True)['output_key']
     destination = 's3://' + bucket_name + '/' + 'sentiment/' + ', ' + 's3://' + bucket_name + '/' + 'topics/'
 
+    # create list of lists to transmit information to database
     obj = []
     obj.append([batch_nr,
                 job_nr,
@@ -361,14 +366,15 @@ def summarised_data_lineage_spark(**kwargs):
                 source,
                 destination])
 
+    # execute query
     cursor.executemany(s, obj)
     conn.commit()
 
-    log.info('update data lineage information')
+    log.info('data lineage updated')
 
     return
 
-# function to filter keys after last date modified in the s3 bucket
+# function to filter keys after "last date modified"in the s3 bucket
 def modified_date_key(bucket_name, key):
     s3 = S3Hook(aws_conn_id='aws_default_christopherkindl')
 
@@ -514,73 +520,74 @@ def save_result_to_postgres_db(**kwargs):
 # =============================================================================
 # 3. Set up the main configurations of the dag
 # =============================================================================
+#
+# create_schema = PythonOperator(
+#     task_id='create_schema',
+#     provide_context=True,
+#     python_callable=create_schema,
+#     op_kwargs=default_args,
+#     dag=dag,
+#
+# )
+#
+# get_twitter_data = PythonOperator(
+#     task_id='get_twitter_data',
+#     provide_context=True,
+#     python_callable=get_twitter_data,
+#     op_kwargs=default_args,
+#     dag=dag,
+#
+# )
+#
+# save_result_to_postgres_db = PythonOperator(
+#     task_id='save_result_to_postgres_db',
+#     provide_context=True,
+#     python_callable=save_result_to_postgres_db,
+#     trigger_rule=TriggerRule.ALL_SUCCESS,
+#     op_kwargs=default_args,
+#     dag=dag,
+#
+# )
+#
+# create_emr_cluster = EmrCreateJobFlowOperator(
+#     task_id="create_emr_cluster",
+#     job_flow_overrides=JOB_FLOW_OVERRIDES,
+#     aws_conn_id="aws_default_christopherkindl",
+#     emr_conn_id="emr_default_christopherkindl",
+#     dag=dag,
+# )
+#
+#
+# step_adder = EmrAddStepsOperator(
+#     task_id="add_steps",
+#     job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
+#     aws_conn_id="aws_default_christopherkindl",
+#     steps=SPARK_STEPS,
+#     dag=dag,
+# )
+#
+# last_step = len(SPARK_STEPS) - 1 # this value will let the sensor know the last step to watch
+#
+#
+# step_checker = EmrStepSensor(
+#     task_id="watch_step",
+#     job_flow_id="{{ task_instance.xcom_pull('create_emr_cluster', key='return_value') }}",
+#     step_id="{{ task_instance.xcom_pull(task_ids='add_steps', key='return_value')["
+#     + str(last_step)
+#     + "] }}",
+#     aws_conn_id="aws_default_christopherkindl",
+#     dag=dag,
+# )
+#
+# # terminate the EMR cluster
+# terminate_emr_cluster = EmrTerminateJobFlowOperator(
+#     task_id="terminate_emr_cluster",
+#     job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
+#     aws_conn_id="aws_default_christopherkindl",
+#     dag=dag,
+# )
 
-create_schema = PythonOperator(
-    task_id='create_schema',
-    provide_context=True,
-    python_callable=create_schema,
-    op_kwargs=default_args,
-    dag=dag,
-
-)
-
-get_twitter_data = PythonOperator(
-    task_id='get_twitter_data',
-    provide_context=True,
-    python_callable=get_twitter_data,
-    op_kwargs=default_args,
-    dag=dag,
-
-)
-
-save_result_to_postgres_db = PythonOperator(
-    task_id='save_result_to_postgres_db',
-    provide_context=True,
-    python_callable=save_result_to_postgres_db,
-    trigger_rule=TriggerRule.ALL_SUCCESS,
-    op_kwargs=default_args,
-    dag=dag,
-
-)
-
-create_emr_cluster = EmrCreateJobFlowOperator(
-    task_id="create_emr_cluster",
-    job_flow_overrides=JOB_FLOW_OVERRIDES,
-    aws_conn_id="aws_default_christopherkindl",
-    emr_conn_id="emr_default_christopherkindl",
-    dag=dag,
-)
-
-
-step_adder = EmrAddStepsOperator(
-    task_id="add_steps",
-    job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
-    aws_conn_id="aws_default_christopherkindl",
-    steps=SPARK_STEPS,
-    dag=dag,
-)
-
-last_step = len(SPARK_STEPS) - 1 # this value will let the sensor know the last step to watch
-
-
-step_checker = EmrStepSensor(
-    task_id="watch_step",
-    job_flow_id="{{ task_instance.xcom_pull('create_emr_cluster', key='return_value') }}",
-    step_id="{{ task_instance.xcom_pull(task_ids='add_steps', key='return_value')["
-    + str(last_step)
-    + "] }}",
-    aws_conn_id="aws_default_christopherkindl",
-    dag=dag,
-)
-
-# terminate the EMR cluster
-terminate_emr_cluster = EmrTerminateJobFlowOperator(
-    task_id="terminate_emr_cluster",
-    job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
-    aws_conn_id="aws_default_christopherkindl",
-    dag=dag,
-)
-
+# use seperate python operator to summarise all spark steps for data lineage
 summarised_data_lineage_spark = PythonOperator(
     task_id='summarised_data_lineage_spark',
     provide_context=True,
@@ -590,9 +597,9 @@ summarised_data_lineage_spark = PythonOperator(
     dag=dag,
 
 )
-
-start_data_pipeline = DummyOperator(task_id="start_data_pipeline", dag=dag)
-end_data_pipeline = DummyOperator(task_id = "end_data_pipeline", dag=dag)
+#
+# start_data_pipeline = DummyOperator(task_id="start_data_pipeline", dag=dag)
+# end_data_pipeline = DummyOperator(task_id = "end_data_pipeline", dag=dag)
 
 
 
@@ -602,7 +609,7 @@ end_data_pipeline = DummyOperator(task_id = "end_data_pipeline", dag=dag)
 # =============================================================================
 
 
-create_schema >> save_result_to_postgres_db
+summarised_data_lineage_spark
 
 
 
