@@ -43,10 +43,10 @@ def topic_analysis(input_loc, output_loc):
     # group by station and join tweets together
     df_tmp = df_clean.select('tweets', 'station').groupby('station').agg(concat_ws(" ", collect_list("tweets")).alias("tweets"))
 
-    # set up bag of words computation
+    # set up bag of words computation via RDD
     bow = df_tmp.rdd\
         .filter(lambda x: x.tweets)\
-        .map( lambda x: x.tweets.replace(',',' ').replace('.',' ').replace('-',' '))\
+        .map(lambda x: x.tweets.replace(',',' ').replace('.',' ').replace('-',' '))\
         .flatMap(lambda x: x.split())\
         .map(lambda x: (x, 1))
 
@@ -54,7 +54,7 @@ def topic_analysis(input_loc, output_loc):
     bow_tmp = bow.reduceByKey(lambda x,y:x+y)
 
     # show top 5 words
-    bow_sorted = bow_tmp.takeOrdered(10,lambda a: -a[1])
+    bow_sorted = bow_tmp.takeOrdered(5,lambda a: -a[1])
 
     # convert list of topics into single string
     topics = ""
@@ -71,7 +71,7 @@ def topic_analysis(input_loc, output_loc):
     df_final = spark.createDataFrame(data).toDF(*columns)
 
     # output as csv file
-    df_final.write.mode("overwrite").csv(output_loc)
+    df_final.write.mode("overwrite").parquet(output_loc)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
