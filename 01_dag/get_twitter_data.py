@@ -451,22 +451,18 @@ def save_result_to_postgres_db(**kwargs):
     log.info("identified value for latest date")
 
     # create empty variable to assign key later
-    key_to_use = ""
+    key_sentiment = ""
 
     # search corresponding key for the identified max date
     for key in keys:
         datetime_value = modified_date_key(bucket_name, key)
         if datetime_value == find_max:
-            key_to_use = key
+            key_sentiment = key
     log.info("identified key for latest modified file")
-    log.info(key_to_use)
-
-
-    # Get the task instance
-    # task_instance = kwargs['ti']
+    log.info(key_sentiment)
 
     s3 = s3.get_resource_type('s3')
-    response = s3.Object(bucket_name, key_to_use).get()
+    response = s3.Object(bucket_name, key_sentiment).get()
     bytes_object = response['Body'].read()
     print(bytes_object)
     df = pd.read_parquet(io.BytesIO(bytes_object))
@@ -483,7 +479,6 @@ def save_result_to_postgres_db(**kwargs):
     log.info('Loading row by row into database')
 
     # load the rows into the PostgresSQL database
-    #s = """INSERT INTO london_schema.sentiment(tweets, date, station, sentiment) VALUES (%s, %s, %s, %s)"""
     s = """INSERT INTO london_schema.sentiment(tweets, date, station, sentiment) VALUES (%s, %s, %s, %s)"""
 
     for index in range(len(df)):
@@ -508,18 +503,18 @@ def save_result_to_postgres_db(**kwargs):
     log.info("identified value for latest date")
 
     # create empty variable to assign key later
-    key_to_use = ""
+    key_topics = ""
 
     # search corresponding key for the identified max date
     for key in keys:
         datetime_value = modified_date_key(bucket_name, key)
         if datetime_value == find_max:
-            key_to_use = key
+            key_topics = key
     log.info("identified key for latest modified file")
-    log.info(key_to_use)
+    log.info(key_topics)
 
     s3 = s3.get_resource_type('s3')
-    response = s3.Object(bucket_name, key_to_use).get()
+    response = s3.Object(bucket_name, key_topics).get()
     bytes_object = response['Body'].read()
     print(bytes_object)
     df = pd.read_parquet(io.BytesIO(bytes_object))
@@ -548,8 +543,8 @@ def save_result_to_postgres_db(**kwargs):
     batch_nr=datetime.now().strftime('%Y%m%d')
     timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     step_airflow="save_result_to_postgres_db" #.__name__
-    source = 's3://' + bucket_name + "/" + key_to_use
-    destination = 'postgres: london_schema.sentiment'
+    source = 's3://' + bucket_name + '/' + key_sentiment + ', ' + 's3://' + bucket_name + '/' + key_topics
+    destination = 'postgres: london_schema.sentiment, london_schema.topics'
 
     obj = []
     obj.append([batch_nr,
@@ -558,7 +553,6 @@ def save_result_to_postgres_db(**kwargs):
                 step_airflow,
                 source,
                 destination])
-                #df.sentiment[index]])
 
     cursor.executemany(s, obj)
     conn.commit()
