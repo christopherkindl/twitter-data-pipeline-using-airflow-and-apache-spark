@@ -274,16 +274,16 @@ def get_twitter_data(**kwargs):
     log.info('read csv and transformed to dataframe')
 
     # only keep essential columns
-    stations.drop(columns = ['OS X', 'OS Y', 'Zone', 'Postcode'], inplace = True)
+    stations.drop(columns = ['Zone'], inplace = True)
 
-    log.info('station information file in final df format')
+    log.info('station information file in df format')
 
     # test twitter api with a test query
     # max number of tweets
-    number_of_tweets = 20
+    number_of_tweets = 35
 
     # max number of stations
-    number_of_stations = 3
+    number_of_stations = 100
 
     # store search results as list items
     tweets = []
