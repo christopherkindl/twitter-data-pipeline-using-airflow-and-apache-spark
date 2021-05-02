@@ -495,8 +495,8 @@ def save_result_to_postgres_db(**kwargs):
     bytes_object = response['Body'].read()
     print(bytes_object)
     df = pd.read_parquet(io.BytesIO(bytes_object))
-
-    log.info('passing sentiment data from S3 bucket')
+    print(df)
+    log.info('passing topics analysis data from S3 bucket')
 
     log.info('Loading row by row into database')
 
