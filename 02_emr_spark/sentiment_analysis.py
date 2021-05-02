@@ -26,7 +26,6 @@ def sentiment_analysis(input_loc, output_loc):
 
     # read input
     df_raw = spark.read.option("header", True).parquet(input_loc)
-    #df_raw = spark.read.option("header", True).parquet(input_loc, compression='gzip')
 
     # lowercase text and remove special characters
     df_raw = df_raw.select("date", "station", (regexp_replace('tweets', "(@[A-Za-z0-9]+)|([^0-9A-Za-z \t])|(\w+:\/\/\S+)", "")).alias('tweets'))

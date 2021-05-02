@@ -219,7 +219,7 @@ def create_schema(**kwargs):
     DROP TABLE IF EXISTS london_schema.topics;
     CREATE TABLE IF NOT EXISTS london_schema.topics(
         "date" timestamp,
-        "topics" varchar,
+        "topics" varchar
     );
 
     DROP TABLE IF EXISTS london_schema.data_lineage;
@@ -471,6 +471,11 @@ def save_result_to_postgres_db(**kwargs):
 
     log.info('Finished saving the sentiment data to postgres database')
 
+    # establish connection to S3 bucket
+    bucket_name = kwargs['bucket_name']
+    s3 = S3Hook(kwargs['aws_conn_id'])
+    log.info("Established connection to S3 bucket")
+
     #s3 = S3Hook(aws_conn_id)
     keys = s3.list_keys(bucket_name, prefix="topics/", delimiter="")
 
@@ -540,14 +545,14 @@ def save_result_to_postgres_db(**kwargs):
 # 3. Set up the main configurations of the dag
 # =============================================================================
 
-# create_schema = PythonOperator(
-#     task_id='create_schema',
-#     provide_context=True,
-#     python_callable=create_schema,
-#     op_kwargs=default_args,
-#     dag=dag,
-#
-# )
+create_schema = PythonOperator(
+    task_id='create_schema',
+    provide_context=True,
+    python_callable=create_schema,
+    op_kwargs=default_args,
+    dag=dag,
+
+)
 
 # get_twitter_data = PythonOperator(
 #     task_id='get_twitter_data',
@@ -558,63 +563,63 @@ def save_result_to_postgres_db(**kwargs):
 #
 # )
 
-# save_result_to_postgres_db = PythonOperator(
-#     task_id='save_result_to_postgres_db',
-#     provide_context=True,
-#     python_callable=save_result_to_postgres_db,
-#     trigger_rule=TriggerRule.ALL_SUCCESS,
-#     op_kwargs=default_args,
+save_result_to_postgres_db = PythonOperator(
+    task_id='save_result_to_postgres_db',
+    provide_context=True,
+    python_callable=save_result_to_postgres_db,
+    trigger_rule=TriggerRule.ALL_SUCCESS,
+    op_kwargs=default_args,
+    dag=dag,
+
+)
+
+
+# create_emr_cluster = EmrCreateJobFlowOperator(
+#     task_id="create_emr_cluster",
+#     job_flow_overrides=JOB_FLOW_OVERRIDES,
+#     aws_conn_id="aws_default_christopherkindl",
+#     emr_conn_id="emr_default_christopherkindl",
 #     dag=dag,
-#
 # )
-
-
-create_emr_cluster = EmrCreateJobFlowOperator(
-    task_id="create_emr_cluster",
-    job_flow_overrides=JOB_FLOW_OVERRIDES,
-    aws_conn_id="aws_default_christopherkindl",
-    emr_conn_id="emr_default_christopherkindl",
-    dag=dag,
-)
+# #
+# #
+# step_adder = EmrAddStepsOperator(
+#     task_id="add_steps",
+#     job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
+#     aws_conn_id="aws_default_christopherkindl",
+#     steps=SPARK_STEPS,
+#     # params={ # these params are used to fill the paramterized values in SPARK_STEPS json
+#     #     "BUCKET_NAME": Variable.get("london-housing-webapp", deserialize_json=True)["bucket_name"],
+#     #     "s3_data": s3_data,
+#     #     "s3_script": s3_script,
+#     #     "s3_clean": s3_clean,
+#     #},
+#     dag=dag,
+# )
+# #
+# last_step = len(SPARK_STEPS) - 1 # this value will let the sensor know the last step to watch
 #
 #
-step_adder = EmrAddStepsOperator(
-    task_id="add_steps",
-    job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
-    aws_conn_id="aws_default_christopherkindl",
-    steps=SPARK_STEPS,
-    # params={ # these params are used to fill the paramterized values in SPARK_STEPS json
-    #     "BUCKET_NAME": Variable.get("london-housing-webapp", deserialize_json=True)["bucket_name"],
-    #     "s3_data": s3_data,
-    #     "s3_script": s3_script,
-    #     "s3_clean": s3_clean,
-    #},
-    dag=dag,
-)
+# step_checker = EmrStepSensor(
+#     task_id="watch_step",
+#     job_flow_id="{{ task_instance.xcom_pull('create_emr_cluster', key='return_value') }}",
+#     step_id="{{ task_instance.xcom_pull(task_ids='add_steps', key='return_value')["
+#     + str(last_step)
+#     + "] }}",
+#     aws_conn_id="aws_default_christopherkindl",
+#     dag=dag,
+# )
 #
-last_step = len(SPARK_STEPS) - 1 # this value will let the sensor know the last step to watch
-
-
-step_checker = EmrStepSensor(
-    task_id="watch_step",
-    job_flow_id="{{ task_instance.xcom_pull('create_emr_cluster', key='return_value') }}",
-    step_id="{{ task_instance.xcom_pull(task_ids='add_steps', key='return_value')["
-    + str(last_step)
-    + "] }}",
-    aws_conn_id="aws_default_christopherkindl",
-    dag=dag,
-)
-
-# Terminate the EMR cluster
-terminate_emr_cluster = EmrTerminateJobFlowOperator(
-    task_id="terminate_emr_cluster",
-    job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
-    aws_conn_id="aws_default_christopherkindl",
-    dag=dag,
-)
-
-start_data_pipeline = DummyOperator(task_id="start_data_pipeline", dag=dag)
-end_data_pipeline = DummyOperator(task_id = "end_data_pipeline", dag=dag)
+# # Terminate the EMR cluster
+# terminate_emr_cluster = EmrTerminateJobFlowOperator(
+#     task_id="terminate_emr_cluster",
+#     job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
+#     aws_conn_id="aws_default_christopherkindl",
+#     dag=dag,
+# )
+#
+# start_data_pipeline = DummyOperator(task_id="start_data_pipeline", dag=dag)
+# end_data_pipeline = DummyOperator(task_id = "end_data_pipeline", dag=dag)
 
 
 
@@ -624,12 +629,12 @@ end_data_pipeline = DummyOperator(task_id = "end_data_pipeline", dag=dag)
 # =============================================================================
 
 
-# create_schema >> save_result_to_postgres_db
+create_schema >> save_result_to_postgres_db
 
-# create_schema >> save_result_to_postgres_db
 
-start_data_pipeline >> create_emr_cluster >> step_adder
-step_adder >> step_checker >> terminate_emr_cluster >> end_data_pipeline
+
+# start_data_pipeline >> create_emr_cluster >> step_adder
+# step_adder >> step_checker >> terminate_emr_cluster >> end_data_pipeline
 
 # start_data_pipeline >> create_schema >> get_twitter_data >> create_emr_cluster >> step_adder
 # step_adder >> step_checker >> terminate_emr_cluster >> save_result_to_postgres_db
