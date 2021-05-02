@@ -16,7 +16,6 @@ def topic_analysis(input_loc, output_loc):
 
     # read input
     df_raw = spark.read.option("header", True).parquet(input_loc)
-    #df_raw = spark.read.option("header", True).parquet(input_loc, compression='gzip')
 
     # lowercase text and remove special characters
     df_raw_lw = df_raw.select("date", "station", (lower(regexp_replace('tweets', "(@[A-Za-z0-9]+)|([^0-9A-Za-z \t])|(\w+:\/\/\S+)", "")).alias('tweets')))
@@ -28,7 +27,7 @@ def topic_analysis(input_loc, output_loc):
     df_tokens = tokenizer.transform(df_raw_rm).select("tweets_token", "date", "station")
 
     # remove stop words
-    remover = StopWordsRemover(inputCol="tweets_token", outputCol="tweets_sw_removed")#, stopWords=stopwordList)
+    remover = StopWordsRemover(inputCol="tweets_token", outputCol="tweets_sw_removed")
     df_sw = remover.transform(df_tokens).select("tweets_sw_removed", "date", "station")
 
     # stemming
@@ -50,7 +49,7 @@ def topic_analysis(input_loc, output_loc):
         .flatMap(lambda x: x.split())\
         .map(lambda x: (x, 1))
 
-    # run bag of words by reduceByKey
+    # run bag of words by reduceByKey method
     bow_tmp = bow.reduceByKey(lambda x,y:x+y)
 
     # show top 5 words
@@ -70,7 +69,7 @@ def topic_analysis(input_loc, output_loc):
     data = [(curr_date, topics)]
     df_final = spark.createDataFrame(data).toDF(*columns)
 
-    # output as csv file
+    # output as parquet file
     df_final.write.mode("overwrite").parquet(output_loc)
 
 if __name__ == "__main__":

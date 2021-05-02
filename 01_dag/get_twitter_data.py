@@ -48,10 +48,10 @@ log = logging.getLogger(__name__)
 
 
 # =============================================================================
-# 1. Set up the main configurations of the dag
+# 1a. Set up the main configurations for Amazon EMR (Spark, Hadoop)
 # =============================================================================
 
-
+# EMR configurations for Spark and Hadoop
 
 JOB_FLOW_OVERRIDES = {
     "Name": "sentiment_analysis",
@@ -75,9 +75,7 @@ JOB_FLOW_OVERRIDES = {
                     "spark.pyspark.virtualenv.enabled": "true",
                     "spark.pyspark.virtualenv.type":"native",
                     "spark.pyspark.virtualenv.bin.path":"/usr/bin/virtualenv"
-                    #"spark.pyspark.virtualenv.enabled": "true"
                     },
-                    #"spark.pyspark.virtualenv.enabled": "true", # by default EMR uses py2, change it to py3
                 }
             ],
         }
@@ -107,7 +105,9 @@ JOB_FLOW_OVERRIDES = {
     "ServiceRole": "EMR_DefaultRole",
 }
 
-SPARK_STEPS = [ # Note the params values are supplied to the operator
+# define spark jobs that are executed on EMR create_emr_cluster
+
+SPARK_STEPS = [
     {
         "Name": "move raw data from S3 to HDFS",
         "ActionOnFailure": "CANCEL_AND_WAIT",
@@ -172,9 +172,9 @@ SPARK_STEPS = [ # Note the params values are supplied to the operator
     },
 ]
 
-
-
-
+# =============================================================================
+# 1b. Set up the main configurations for DAG
+# =============================================================================
 
 default_args = {
     'start_date': datetime(2021, 3, 8),
@@ -198,16 +198,19 @@ dag = DAG('london-housing-webapp',
           max_active_runs=1)
 
 
-# Creating schema if inexistant
+# =============================================================================
+# 2. Define functions
+# =============================================================================
+
+
 def create_schema(**kwargs):
     pg_hook = PostgresHook(postgres_conn_id=kwargs['postgres_conn_id'], schema=kwargs['db_name'])
     conn = pg_hook.get_conn()
     cursor = conn.cursor()
-    log.info('Initialised connection') #change column types to float
+    log.info('initialised connection')
     sql_queries = """
 
     CREATE SCHEMA IF NOT EXISTS london_schema;
-    DROP TABLE IF EXISTS london_schema.sentiment;
     CREATE TABLE IF NOT EXISTS london_schema.sentiment(
         "tweets" varchar,
         "date" timestamp,
@@ -215,14 +218,11 @@ def create_schema(**kwargs):
         "sentiment" numeric
     );
 
-    CREATE SCHEMA IF NOT EXISTS london_schema;
-    DROP TABLE IF EXISTS london_schema.topics;
     CREATE TABLE IF NOT EXISTS london_schema.topics(
         "date" timestamp,
         "topics" varchar
     );
 
-    DROP TABLE IF EXISTS london_schema.data_lineage;
     CREATE TABLE IF NOT EXISTS london_schema.data_lineage(
         "batch_nr" numeric,
         "job_nr" numeric,
@@ -235,16 +235,22 @@ def create_schema(**kwargs):
 
     cursor.execute(sql_queries)
     conn.commit()
-    log.info("Created schema and table")
+    log.info("created schema and table")
 
 
 def get_twitter_data(**kwargs):
 
-    # twitter api credentials
+    # document step nr for data lineage
+    num = 1
+    job_nr = num
+
+    # get twitter api credentials
     consumer_key = Variable.get('london-housing-webapp_twitter_api', deserialize_json=True)['consumer_key']
     consumer_secret = Variable.get('london-housing-webapp_twitter_api', deserialize_json=True)['consumer_secret']
     access_token = Variable.get('london-housing-webapp_twitter_api', deserialize_json=True)['access_token']
     access_token_secret = Variable.get('london-housing-webapp_twitter_api', deserialize_json=True)['access_token_secret']
+
+    log.info('credentials received')
 
     # assign credentials
     auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
@@ -253,11 +259,11 @@ def get_twitter_data(**kwargs):
 
     log.info('credentials provided')
 
-    # establishing connection to S3 bucket
+    # establish connection to S3 bucket
     bucket_name = kwargs['bucket_name']
     key = Variable.get('london-housing-webapp_get_csv', deserialize_json=True)['key1']
     s3 = S3Hook(kwargs['aws_conn_id'])
-    log.info('Established connection to S3 bucket')
+    log.info('established connection to S3 bucket')
 
     # get the task instance
     task_instance = kwargs['ti']
@@ -266,8 +272,7 @@ def get_twitter_data(**kwargs):
 
     # read the content of the key from the bucket
     stations = s3.read_key(key, bucket_name)
-    print("String read from s3", stations)
-    log.info('Read the content..')
+    log.info('read the content')
 
     # read the CSV
     stations = pd.read_csv(io.StringIO(stations))
@@ -278,12 +283,11 @@ def get_twitter_data(**kwargs):
 
     log.info('station information file in df format')
 
-    # test twitter api with a test query
-    # max number of tweets
-    number_of_tweets = 35
+    # max number of tweets per station
+    number_of_tweets = 40
 
-    # max number of stations
-    number_of_stations = 100
+    # max number of stations (for test purposes)
+    #number_of_stations = 100
 
     # store search results as list items
     tweets = []
@@ -292,7 +296,7 @@ def get_twitter_data(**kwargs):
 
     log.info('about to run search query via Twitter API')
     # run query with geolocation information obtained from station flat file
-    for index in range(len(stations[:number_of_stations])):
+    for index in range(len(stations)):
         for i in tweepy.Cursor(api.search, q = 'london', lang = 'en', geocode= \
                                str(stations['Latitude'][index])+','+str(stations['Longitude'][index])+',1km').\
             items(number_of_tweets):
@@ -307,34 +311,69 @@ def get_twitter_data(**kwargs):
 
     log.info('query results converted into df')
 
-    #Establishing S3 connection
+    # establish S3 connection
     s3 = S3Hook(kwargs['aws_conn_id'])
     key = Variable.get('twitter_api', deserialize_json=True)['output_key']
     bucket_name = kwargs['bucket_name']
 
-    # Prepare the file to send to s3
-    csv_buffer = io.BytesIO()
-    data_csv=df.to_parquet(csv_buffer)
+    # prepare the file to send to s3
+    parquet_buffer = io.BytesIO()
+    data_parquet=df.to_parquet(parquet_buffer)
 
-    # Save the pandas dataframe as a parquet to s3
+    # save the pandas dataframe as a parquet to s3
     s3 = s3.get_resource_type('s3')
 
-    # Get the data type object from pandas dataframe, key and connection object to s3 bucket
-    data = csv_buffer.getvalue()
+    # get the data type object, key and connection object to s3 bucket
+    data = parquet_buffer.getvalue()
     object = s3.Object(bucket_name, key)
 
-    # Write the file to S3 bucket in specific path defined in key
+    # write the file to S3 bucket in specific path defined in key
     object.put(Body=data)
 
     log.info('Finished saving the scraped data to s3')
+
+    # update data lineage information
+
+    # connect to the PostgreSQL database
+    pg_hook = PostgresHook(postgres_conn_id=kwargs['postgres_conn_id'], schema=kwargs['db_name'])
+    conn = pg_hook.get_conn()
+    cursor = conn.cursor()
+
+    log.info('Initialised connection')
+
+    log.info('Loading row by row into database')
+
+    s = """INSERT INTO london_schema.data_lineage(batch_nr, job_nr, timestamp, step_airflow, source, destination) VALUES (%s, %s, %s, %s, %s, %s)"""
+
+    # assign information
+    batch_nr=datetime.now().strftime('%Y%m%d')
+    timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    step_airflow="get_twitter_data"
+    source = "External: Twitter API"
+    destination = 's3://' + bucket_name + '/' + key
+
+    # create list of lists to transmit information to database
+    obj = []
+    obj.append([batch_nr,
+                job_nr,
+                timestamp,
+                step_airflow,
+                source,
+                destination])
+
+    # execute query
+    cursor.executemany(s, obj)
+    conn.commit()
+
+    log.info('data lineage updated')
 
     return
 
 def summarised_data_lineage_spark(**kwargs):
 
-    # document step nr
-    num = 0
-    job_nr = num + 1
+    # document step nr for data lineage
+    num += 1
+    job_nr = num
 
     # get bucket name
     bucket_name = kwargs['bucket_name']
@@ -374,7 +413,7 @@ def summarised_data_lineage_spark(**kwargs):
 
     return
 
-# function to filter keys after "last date modified"in the s3 bucket
+# function to filter keys after "last date modified" in s3 bucket
 def modified_date_key(bucket_name, key):
     s3 = S3Hook(aws_conn_id='aws_default_christopherkindl')
 
@@ -387,15 +426,16 @@ def modified_date_key(bucket_name, key):
 # saving twitter sentiment results to postgres database
 def save_result_to_postgres_db(**kwargs):
 
-    # document step nr
-    job_nr = num + 1
+    # document step nr for data lineage
+    num += 1
+    job_nr = num
 
     # establish connection to S3 bucket
     bucket_name = kwargs['bucket_name']
     s3 = S3Hook(kwargs['aws_conn_id'])
     log.info("Established connection to S3 bucket")
 
-    #s3 = S3Hook(aws_conn_id)
+    # list all keys in subpath sentiment/
     keys = s3.list_keys(bucket_name, prefix="sentiment/", delimiter="")
 
     # identify latest date ("last modified") in the S3 subfolder by using max function
@@ -403,7 +443,7 @@ def save_result_to_postgres_db(**kwargs):
     find_max = max([modified_date_key(bucket_name, key) for key in keys])
     log.info("identified value for latest date")
 
-    # create empty variable to assign key later
+    # create empty variable to assign desired key
     key_sentiment = ""
 
     # search corresponding key for the identified max date
@@ -414,10 +454,12 @@ def save_result_to_postgres_db(**kwargs):
     log.info("identified key for latest modified file")
     log.info(key_sentiment)
 
+    # access bucket
     s3 = s3.get_resource_type('s3')
     response = s3.Object(bucket_name, key_sentiment).get()
     bytes_object = response['Body'].read()
-    print(bytes_object)
+
+    # convert parquet file into dataframe
     df = pd.read_parquet(io.BytesIO(bytes_object))
 
     log.info('passing sentiment data from S3 bucket')
@@ -434,6 +476,8 @@ def save_result_to_postgres_db(**kwargs):
     # load the rows into the PostgresSQL database
     s = """INSERT INTO london_schema.sentiment(tweets, date, station, sentiment) VALUES (%s, %s, %s, %s)"""
 
+
+    # create list of lists to transmit results to database
     for index in range(len(df)):
         obj = []
 
@@ -442,17 +486,19 @@ def save_result_to_postgres_db(**kwargs):
                     df.station[index],
                     df.sentiment[index]])
 
+    # execute query
         cursor.executemany(s, obj)
         conn.commit()
 
     log.info('Finished saving the sentiment data to postgres database')
+
+    # transmit topic analysis results to database
 
     # establish connection to S3 bucket
     bucket_name = kwargs['bucket_name']
     s3 = S3Hook(kwargs['aws_conn_id'])
     log.info("Established connection to S3 bucket")
 
-    #s3 = S3Hook(aws_conn_id)
     keys = s3.list_keys(bucket_name, prefix="topics/", delimiter="")
 
     # identify latest date ("last modified") in the S3 subfolder by using max function
@@ -460,7 +506,7 @@ def save_result_to_postgres_db(**kwargs):
     find_max = max([modified_date_key(bucket_name, key) for key in keys])
     log.info("identified value for latest date")
 
-    # create empty variable to assign key later
+    # create empty variable to assign desired key
     key_topics = ""
 
     # search corresponding key for the identified max date
@@ -471,12 +517,13 @@ def save_result_to_postgres_db(**kwargs):
     log.info("identified key for latest modified file")
     log.info(key_topics)
 
+    # access bucket
     s3 = s3.get_resource_type('s3')
     response = s3.Object(bucket_name, key_topics).get()
     bytes_object = response['Body'].read()
-    print(bytes_object)
+
+    # convert parquet file into dataframe
     df = pd.read_parquet(io.BytesIO(bytes_object))
-    print(df)
     log.info('passing topics analysis data from S3 bucket')
 
     log.info('Loading row by row into database')
@@ -484,17 +531,20 @@ def save_result_to_postgres_db(**kwargs):
 
     s = """INSERT INTO london_schema.topics(date, topics) VALUES (%s, %s)"""
 
+    # create list of lists to transmit results to database
     for index in range(len(df)):
         obj = []
 
         obj.append([df.date[index],
                     df.topics[index]])
 
+    # execute query
         cursor.executemany(s, obj)
         conn.commit()
 
     log.info('Finished saving the topic analysis data to postgres database')
 
+    # update data lineage information
 
     s = """INSERT INTO london_schema.data_lineage(batch_nr, job_nr, timestamp, step_airflow, source, destination) VALUES (%s, %s, %s, %s, %s, %s)"""
 
@@ -504,6 +554,7 @@ def save_result_to_postgres_db(**kwargs):
     source = 's3://' + bucket_name + '/' + key_sentiment + ', ' + 's3://' + bucket_name + '/' + key_topics
     destination = 'postgres: london_schema.sentiment, london_schema.topics'
 
+    # create list of lists to transmit results to database
     obj = []
     obj.append([batch_nr,
                 job_nr,
@@ -512,80 +563,81 @@ def save_result_to_postgres_db(**kwargs):
                 source,
                 destination])
 
+    # execute query
     cursor.executemany(s, obj)
     conn.commit()
 
     log.info('update data lineage information')
 
 # =============================================================================
-# 3. Set up the main configurations of the dag
+# 3. Create Operators
 # =============================================================================
-#
-# create_schema = PythonOperator(
-#     task_id='create_schema',
-#     provide_context=True,
-#     python_callable=create_schema,
-#     op_kwargs=default_args,
-#     dag=dag,
-#
-# )
-#
-# get_twitter_data = PythonOperator(
-#     task_id='get_twitter_data',
-#     provide_context=True,
-#     python_callable=get_twitter_data,
-#     op_kwargs=default_args,
-#     dag=dag,
-#
-# )
-#
-# save_result_to_postgres_db = PythonOperator(
-#     task_id='save_result_to_postgres_db',
-#     provide_context=True,
-#     python_callable=save_result_to_postgres_db,
-#     trigger_rule=TriggerRule.ALL_SUCCESS,
-#     op_kwargs=default_args,
-#     dag=dag,
-#
-# )
-#
-# create_emr_cluster = EmrCreateJobFlowOperator(
-#     task_id="create_emr_cluster",
-#     job_flow_overrides=JOB_FLOW_OVERRIDES,
-#     aws_conn_id="aws_default_christopherkindl",
-#     emr_conn_id="emr_default_christopherkindl",
-#     dag=dag,
-# )
-#
-#
-# step_adder = EmrAddStepsOperator(
-#     task_id="add_steps",
-#     job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
-#     aws_conn_id="aws_default_christopherkindl",
-#     steps=SPARK_STEPS,
-#     dag=dag,
-# )
-#
-# last_step = len(SPARK_STEPS) - 1 # this value will let the sensor know the last step to watch
-#
-#
-# step_checker = EmrStepSensor(
-#     task_id="watch_step",
-#     job_flow_id="{{ task_instance.xcom_pull('create_emr_cluster', key='return_value') }}",
-#     step_id="{{ task_instance.xcom_pull(task_ids='add_steps', key='return_value')["
-#     + str(last_step)
-#     + "] }}",
-#     aws_conn_id="aws_default_christopherkindl",
-#     dag=dag,
-# )
-#
-# # terminate the EMR cluster
-# terminate_emr_cluster = EmrTerminateJobFlowOperator(
-#     task_id="terminate_emr_cluster",
-#     job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
-#     aws_conn_id="aws_default_christopherkindl",
-#     dag=dag,
-# )
+
+create_schema = PythonOperator(
+    task_id='create_schema',
+    provide_context=True,
+    python_callable=create_schema,
+    op_kwargs=default_args,
+    dag=dag,
+
+)
+
+get_twitter_data = PythonOperator(
+    task_id='get_twitter_data',
+    provide_context=True,
+    python_callable=get_twitter_data,
+    op_kwargs=default_args,
+    dag=dag,
+
+)
+
+save_result_to_postgres_db = PythonOperator(
+    task_id='save_result_to_postgres_db',
+    provide_context=True,
+    python_callable=save_result_to_postgres_db,
+    trigger_rule=TriggerRule.ALL_SUCCESS,
+    op_kwargs=default_args,
+    dag=dag,
+
+)
+
+create_emr_cluster = EmrCreateJobFlowOperator(
+    task_id="create_emr_cluster",
+    job_flow_overrides=JOB_FLOW_OVERRIDES,
+    aws_conn_id="aws_default_christopherkindl",
+    emr_conn_id="emr_default_christopherkindl",
+    dag=dag,
+)
+
+
+step_adder = EmrAddStepsOperator(
+    task_id="add_steps",
+    job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
+    aws_conn_id="aws_default_christopherkindl",
+    steps=SPARK_STEPS,
+    dag=dag,
+)
+
+last_step = len(SPARK_STEPS) - 1 # this value will let the sensor know the last step to watch
+
+
+step_checker = EmrStepSensor(
+    task_id="watch_step",
+    job_flow_id="{{ task_instance.xcom_pull('create_emr_cluster', key='return_value') }}",
+    step_id="{{ task_instance.xcom_pull(task_ids='add_steps', key='return_value')["
+    + str(last_step)
+    + "] }}",
+    aws_conn_id="aws_default_christopherkindl",
+    dag=dag,
+)
+
+# terminate the EMR cluster
+terminate_emr_cluster = EmrTerminateJobFlowOperator(
+    task_id="terminate_emr_cluster",
+    job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
+    aws_conn_id="aws_default_christopherkindl",
+    dag=dag,
+)
 
 # use seperate python operator to summarise all spark steps for data lineage
 summarised_data_lineage_spark = PythonOperator(
@@ -597,9 +649,9 @@ summarised_data_lineage_spark = PythonOperator(
     dag=dag,
 
 )
-#
-# start_data_pipeline = DummyOperator(task_id="start_data_pipeline", dag=dag)
-# end_data_pipeline = DummyOperator(task_id = "end_data_pipeline", dag=dag)
+
+start_data_pipeline = DummyOperator(task_id="start_data_pipeline", dag=dag)
+end_data_pipeline = DummyOperator(task_id = "end_data_pipeline", dag=dag)
 
 
 
