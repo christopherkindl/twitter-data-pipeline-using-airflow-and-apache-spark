@@ -269,10 +269,10 @@ def get_twitter_data(**kwargs):
     log.info('station information file in df format')
 
     # max number of tweets per station
-    number_of_tweets = 40
+    number_of_tweets = 10
 
     # max number of stations (for test purposes)
-    #number_of_stations = 100
+    number_of_stations = 40
 
     # store search results as list items
     tweets = []
@@ -281,11 +281,12 @@ def get_twitter_data(**kwargs):
 
     log.info('about to run search query via Twitter API')
     # run query with geolocation information obtained from station flat file
-    for index in range(len(stations)):
-        for i in tweepy.Cursor(api.search, q = 'london', lang = 'en', geocode= \
+    # add 1km radius (incorporated in the geocode in the end)
+    for index in range(len(stations[:number_of_stations])):
+        for i in tweepy.Cursor(api.search, q = 'london', lang = 'en', tweet_mode='extended', geocode= \
                                str(stations['Latitude'][index])+','+str(stations['Longitude'][index])+',1km').\
             items(number_of_tweets):
-            tweets.append(i.text)
+            tweets.append(i.full_text)
             station.append(stations['Station'][index])
             date.append(i.created_at)
 
