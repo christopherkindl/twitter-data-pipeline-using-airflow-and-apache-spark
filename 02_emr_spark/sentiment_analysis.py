@@ -1,5 +1,6 @@
 # PySpark modules
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import udf, lower, col, regexp_replace, concat_ws, collect_list
 from pyspark.sql.functions import udf
 
 # parser

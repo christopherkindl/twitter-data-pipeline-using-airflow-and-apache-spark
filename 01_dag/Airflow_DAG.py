@@ -272,7 +272,7 @@ def get_twitter_data(**kwargs):
     number_of_tweets = 10
 
     # max number of stations (for test purposes)
-    number_of_stations = 40
+    number_of_stations = 30
 
     # store search results as list items
     tweets = []
