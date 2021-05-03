@@ -1,1 +1,1 @@
-# Data pipeline to process tweets in a distributed fashion using Apache Spark and Airflow in AWS environment
+# Data pipeline to process analyse Twitter data in a distributed fashion using Apache Spark and Airflow in AWS environment
