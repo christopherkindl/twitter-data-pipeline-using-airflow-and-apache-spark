@@ -20,4 +20,12 @@ AWS provides [Amazon Managed Workflows for Apache Airflow (MWAA)](https://aws.am
 
 3. Upload `requirements.txt` that contains our python libaries to run the Airflow DAG. AWS will install them via `pip install`. Hint: If your DAG runs on libaries that are not available in pip, you can upload a `plugins.zip` in which you can include your desired libaries as [Python wheels](https://medium.com/swlh/beginners-guide-to-create-python-wheel-7d45f8350a94).
 
-Each environment runs in a [Amazon Virtual Private Cloud (VPC)](https://aws.amazon.com/de/vpc/) using private subnets in two [availability zones](https://aws.amazon.com/de/about-aws/global-infrastructure/regions_az/#Availability_Zones). AWS recommends to use a `private network` for the web server access. For simplicity, we select a `public network` which allows to log in over the internet. Lastly, we let MWAA create a new security group.
+4. Each environment runs in a [Amazon Virtual Private Cloud (VPC)](https://aws.amazon.com/de/vpc/) using private subnets in two [availability zones](https://aws.amazon.com/de/about-aws/global-infrastructure/regions_az/#Availability_Zones). AWS recommends to use a `private network` for the web server access. For simplicity, we select a `public network` which allows to log in over the internet. Lastly, we let MWAA create a new `security group`.
+
+5. For the environment class, we select `pw1.small` as it corresponds best to our DAG workload.
+
+6. Activate `Airflow task logs` using the default setting. This allows to have logging information which is especially helpful for debugging.
+
+7. Keep the `default settings`.
+
+8. Create a `new role` or use an existing one and complete the setup by clicking `create new environment`.
