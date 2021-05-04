@@ -19,5 +19,5 @@ Go to the [MWAA console](https://console.aws.amazon.com/mwaa/home) and create a 
 
 
 
-Select an existing S3 bucket or create a new one and define the path where the Airflow DAG should be loaded from. The bucket name must start with `airflow-`
+Select an existing [S3](https://s3.console.aws.amazon.com/) bucket or create a new one and define the path where the Airflow DAG (the script which executes all tasks you want to run for the data pipeline) should be loaded from. The bucket name must start with `airflow-`
 
