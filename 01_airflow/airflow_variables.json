@@ -1,0 +1,12 @@
+{
+    "london-housing-webapp": {
+        "bucket_name": "london-housing-webapp",
+        "key1": "input/subway_station_information.csv" # where the flat file for the API request is loaded from
+        "output_key": "api_output/twitter_results.parquet", # where to store the scraped tweets
+        "db_name": "postgres", # name of db
+        "consumer_key": "{{TWITTER API KEY}}",
+        "consumer_secret": "{{TWITTER API SECRET}}",
+        "access_token": "{{TWITTER API ACCESS TOKEN}}",
+        "access_token_secret": "{{{TWITTER API ACCESS TOKEN}}"
+    }
+}
