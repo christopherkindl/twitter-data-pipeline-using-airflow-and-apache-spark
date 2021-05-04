@@ -10,7 +10,7 @@ This repository shows the development of a scalable data pipeline in AWS using p
 1. [Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) to clone the repository
 2. [AWS account](https://aws.amazon.com/de/) to run pipeline in cloud environment
 3. [Twitter developer account](https://developer.twitter.com/en/apply-for-access) with access to the standard API to fetch tweets
-4. Database - in this project, the code to store the data in a database is written specially for a [PostgreSQL](link to doc) database
+4. Database - in this project, we use a [PostgreSQL](link to doc) database. Database related code snippets (e.g. uploading data to db) might differ when using other databases
 4. Webhosting with [WordPress](https://wordpress.org/support/article/how-to-install-wordpress/) to run the client application
 
 &emsp;
