@@ -92,3 +92,84 @@ dag = DAG('london-housing-webapp',
 
 ```
 
+&emsp;
+
+## 2. Taks in the Airflow DAG
+
+A typical Airflow DAG consists of different tasks that either fetch, transform or process data in various ways. Heavy data analysis tasks are not recommended to run within the MWAA environment due to its modest workload capacity. ML tasks are usally called via [Amazon SageMaker](https://aws.amazon.com/de/sagemaker/), whereas complex data analyses can be done in distributed fashion on [Amazon EMR](https://aws.amazon.com/de/emr/). In our case, we run the data analysis on an Amazon EMR cluster using [Apache Spark](https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark.html) (PySpark).
+
+We can either write customized functions (e.g. request data via Twitter API) or can make use of predefined modules which are usually there to trigger external activities (e.g. data analysis in Spark on Amazon EMR).
+
+Example of customized function which is then assigned to a `PythonOperator` to function as a task:
+
+```
+
+# custom function
+
+def create_schema(**kwargs):
+    ‘’’
+    1. connect to Postgre Database
+    2. create schema and tables in which the final data will be stored
+    3. execute query
+    ‘’’
+    pg_hook = PostgresHook(postgres_conn_id=kwargs['postgres_conn_id'], schema=kwargs['db_name'])
+    conn = pg_hook.get_conn()
+    cursor = conn.cursor()
+    log.info('initialised connection')
+    sql_queries = """
+
+    CREATE SCHEMA IF NOT EXISTS london_schema;
+    CREATE TABLE IF NOT EXISTS london_schema.sentiment(
+        "tweets" varchar,
+        "date" timestamp,
+        "station" varchar(256),
+        "sentiment" numeric
+    );
+
+    CREATE TABLE IF NOT EXISTS london_schema.topics(
+        "date" timestamp,
+        "topics" varchar
+    );
+
+    CREATE TABLE IF NOT EXISTS london_schema.data_lineage(
+        "batch_nr" numeric,
+        "job_nr" numeric,
+        "timestamp" timestamp,
+        "step_airflow" varchar(256),
+        "source" varchar(256),
+        "destination" varchar(256)
+    );
+    """
+
+    # execute query
+    cursor.execute(sql_queries)
+    conn.commit()
+    log.info("created schema and table")
+
+
+
+# qualify as task
+
+create_schema = PythonOperator(
+    task_id='create_schema',
+    provide_context=True,
+    python_callable=create_schema,
+    op_kwargs=default_args,
+    dag=dag,
+
+)
+
+
+```
+
+The custom function above creates schema and tables directly into the PostgreSQL database in which the final data will be uploaded to. Note how `op_kwargs = default_args` allows to interface with the general configuration information provided. 
+
+The example DAG contains all tasks starting from fetching the Twitter data to upload the final results into the database. Tasks can be executed in sequence or simoutanesly if possible. The order can be indicated with the following example syntax:
+
+```
+
+start_data_pipeline >> create_schema >> get_twitter_data >> create_emr_cluster >> step_adder
+step_adder >> step_checker >> terminate_emr_cluster >> summarised_data_lineage_spark >> save_result_to_postgres_db
+save_result_to_postgres_db >> end_data_pipeline
+
+```
