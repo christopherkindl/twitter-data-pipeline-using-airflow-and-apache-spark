@@ -190,6 +190,8 @@ See the entire Airflow DAG code of this project [here](https://github.com/christ
 
 ## 3. Run Spark on Amazon EMR
 
+**Change permissions**  
+
 Change [IAM policy](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/blob/main/IAM_policy_configuration.json) to the following setting to allow MWAA to interface with Amazon EMR. 
 
 ```
