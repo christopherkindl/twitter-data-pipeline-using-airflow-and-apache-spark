@@ -55,7 +55,7 @@ MWAA provides variables to store and retrieve arbitrary content or settings as a
     }
 }
 
-``
+```
 
 A sample [JSON variabes](link to file) file is provided in the repository that contains all variables used in this project.
 
