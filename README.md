@@ -57,7 +57,7 @@ MWAA provides variables to store and retrieve arbitrary content or settings as a
 
 ```
 
-A sample [variabes file](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/blob/main/01_airflow/airflow_variables.json) file is provided in the repository that contains all variables used in this project.
+A sample [variabes file](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/blob/main/01_airflow/airflow_variables.json) is provided in the repository that contains all variables used in this project.
 
 Airflow also allows to define connection objects. In our case, we need a connection to `AWS` itself (Airflow acts as an external system to AWS) and to our `database` in which the final results will be stored.
 
