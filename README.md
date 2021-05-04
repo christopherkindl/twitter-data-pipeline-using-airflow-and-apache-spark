@@ -10,6 +10,8 @@ This repository shows the development of a scalable data pipeline in AWS using p
 2. [AWS account](https://aws.amazon.com/de/) to run pipeline in cloud environment
 3. Webhosting with [WordPress](https://wordpress.org/support/article/how-to-install-wordpress/) to run the client application
 
+&emsp;
+
 ## 0. Setting up the cloud environment in AWS
 
 AWS provides [Amazon Managed Workflows for Apache Airflow (MWAA)](https://aws.amazon.com/de/blogs/aws/introducing-amazon-managed-workflows-for-apache-airflow-mwaa/) that makes it very easy to run Apache Airflow on AWS.
