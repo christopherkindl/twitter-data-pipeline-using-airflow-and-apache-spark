@@ -185,3 +185,35 @@ save_result_to_postgres_db >> end_data_pipeline
 ![alt text](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/blob/main/03_images/airflow_steps.jpg)
 
 See the entire Airflow DAG code of this project [here](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/blob/main/01_airflow/Airflow_DAG.py)
+
+&emsp;
+
+## Run Spark on Amazon EMR
+
+Change [IAM policy] to the following setting to allow MWAA to interface with Amazon EMR: 
+
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "elasticmapreduce:DescribeStep",
+                "elasticmapreduce:AddJobFlowSteps",
+                "elasticmapreduce:RunJobFlow"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": "iam:PassRole",
+            "Resource": [
+                "arn:aws:iam::{{AWS ID}}:role/EMR_DefaultRole",
+                "arn:aws:iam::{{AWS ID}}:role/EMR_EC2_DefaultRole"
+            ]
+        }
+    ]
+}
+
+```
