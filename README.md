@@ -178,7 +178,9 @@ step_adder >> step_checker >> terminate_emr_cluster >> summarised_data_lineage_s
 save_result_to_postgres_db >> end_data_pipeline
 
 ```
-**All tasks**  
+  
+
+**All tasks of the DAG**  
 
 ![alt text](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/blob/main/03_images/airflow_steps.jpg)
 
