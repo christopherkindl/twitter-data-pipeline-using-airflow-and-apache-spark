@@ -4,7 +4,7 @@ This repository shows the development of a scalable data pipeline in AWS using p
 
 ![alt text](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/blob/main/03_images/Architecture.png)
 
-# Prerequisites
+## Prerequisites
 
 1. [Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) to clone the repository
 2. [AWS account](https://aws.amazon.com/de/) to run pipeline in cloud environment
