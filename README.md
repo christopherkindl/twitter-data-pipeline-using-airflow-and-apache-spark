@@ -42,6 +42,7 @@ AWS provides [Amazon Managed Workflows for Apache Airflow (MWAA)](https://aws.am
 MWAA provides variables to store and retrieve arbitrary content or settings as a simple key-value store within Airflow. They can be created directly from the user interface (Admin > Variables) or bulk uploaded via `JSON` files.
 
 ```
+
 {
     "london-housing-webapp": {
         "bucket_name": "london-housing-webapp",
@@ -68,6 +69,7 @@ Airflow also allows to define connection objects. In our case, we need a connect
 Define basic configuration information, such as `schedule_interval` or `start_date in section` `default_args` and `dag` of the DAG. This is also the place where we incorporate our variables and connection objects
 
 ```
+
 default_args = {
     'start_date': datetime(2021, 3, 8),
     'owner': 'Airflow',
