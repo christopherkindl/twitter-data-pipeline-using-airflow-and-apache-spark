@@ -10,7 +10,7 @@ This repository shows the development of a scalable data pipeline in AWS using p
 1. [Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) to clone the repository
 2. [AWS account](https://aws.amazon.com/de/) to run pipeline in cloud environment
 3. [Twitter developer account](https://developer.twitter.com/en/apply-for-access) with access to the standard API to fetch tweets
-4. Database - in this project, we use a [PostgreSQL](link to doc) database. Database related code snippets (e.g. uploading data to db) might differ when using other databases
+4. Database - in this project, we use a [PostgreSQL](https://aws.amazon.com/de/free/?all-free-tier.sort-by=item.additionalFields.SortRank&all-free-tier.sort-order=asc&awsf.Free%20Tier%20Types=*all&awsf.Free%20Tier%20Categories=categories%23databases&trk=ps_a134p000006gB3BAAU&trkCampaign=acq_paid_search_brand&sc_channel=PS&sc_campaign=acquisition_GB&sc_publisher=Google&sc_category=Database&sc_country=GB&sc_geo=EMEA&sc_outcome=acq&sc_detail=%2Baws%20%2Bpostgre%20%2Bsql&sc_content=Postgresql_bmm&sc_matchtype=b&sc_segment=474770369669&sc_medium=ACQ-P|PS-GO|Brand|Desktop|SU|Database|Solution|GB|EN|Text&s_kwcid=AL!4422!3!474770369669!b!!g!!%2Baws%20%2Bpostgre%20%2Bsql&ef_id=Cj0KCQjw4cOEBhDMARIsAA3XDRgGVwcl2iuojFE7mou4ARb2IMIcBq-D4zps3ZAYM9s-WauxPMnQMwEaAh2eEALw_wcB:G:s&s_kwcid=AL!4422!3!474770369669!b!!g!!%2Baws%20%2Bpostgre%20%2Bsql) database. Database related code snippets (e.g. uploading data to db) might differ when using other databases
 4. Webhosting with [WordPress](https://wordpress.org/support/article/how-to-install-wordpress/) to run the client application
 
 &emsp;
