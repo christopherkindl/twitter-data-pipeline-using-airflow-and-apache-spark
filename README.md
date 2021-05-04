@@ -102,7 +102,7 @@ A typical Airflow DAG consists of different tasks that either fetch, transform o
 
 We can either write customized functions (e.g. request data via Twitter API) or can make use of predefined modules which are usually there to trigger external activities (e.g. data analysis in Spark on Amazon EMR).
 
-Example of customized function which is then assigned to a `PythonOperator` to function as a task:
+Example of a customized function which is then assigned to a `PythonOperator` to function as a task:
 
 ```
 
@@ -178,6 +178,7 @@ step_adder >> step_checker >> terminate_emr_cluster >> summarised_data_lineage_s
 save_result_to_postgres_db >> end_data_pipeline
 
 ```
+**All tasks**  
 
 ![alt text](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/blob/main/03_images/airflow_steps.jpg)
 
