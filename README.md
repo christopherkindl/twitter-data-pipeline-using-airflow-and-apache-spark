@@ -75,11 +75,10 @@ default_args = {
     'email_on_failure': True,
     'email_on_retry': False,
     'aws_conn_id': 'aws_default_christopherkindl',
-    'emr_conn_id' : 'emr_default_christopherkindl',
     'bucket_name': Variable.get('london-housing-webapp', deserialize_json=True)['bucket_name'],
     'postgres_conn_id': 'postgres_id_christopherkindl',
-    'output_key': Variable.get('twitter_api',deserialize_json=True)['output_key'],
-    'db_name': Variable.get('housing_db', deserialize_json=True)['db_name']
+    'output_key': Variable.get('london-housing-webapp',deserialize_json=True)['output_key'],
+    'db_name': Variable.get('london-housing-webapp', deserialize_json=True)['db_name']
 }
 
 dag = DAG('london-housing-webapp',
