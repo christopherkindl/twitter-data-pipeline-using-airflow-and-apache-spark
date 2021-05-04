@@ -96,7 +96,7 @@ dag = DAG('london-housing-webapp',
 
 ## 2. Taks in the Airflow DAG
 
-**Basic architecture**
+**Basic architecture**  
 A typical Airflow DAG consists of different tasks that either fetch, transform or process data in various ways. Heavy data analysis tasks are not recommended to run within the MWAA environment due to its modest workload capacity. ML tasks are usally called via [Amazon SageMaker](https://aws.amazon.com/de/sagemaker/), whereas complex data analyses can be done in distributed fashion on [Amazon EMR](https://aws.amazon.com/de/emr/). In our case, we run the data analysis on an Amazon EMR cluster using [Apache Spark](https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark.html) (via Python API PySpark).
 
 We can either write customized functions (e.g. request data via Twitter API) or can make use of predefined modules which are usually there to trigger external activities (e.g. data analysis in Spark on Amazon EMR).
@@ -165,7 +165,7 @@ create_schema = PythonOperator(
 
 The custom function above creates schema and tables directly into the PostgreSQL database in which the final data will be uploaded to. Note how `op_kwargs = default_args` allows to interface with the general configuration information provided. 
 
-**Indicating the order of the tasks**
+**Indicating the order of the tasks**  
 Tasks can be executed in sequence or simoutanesly if possible. The order can be indicated with the following example syntax:
 
 ```
