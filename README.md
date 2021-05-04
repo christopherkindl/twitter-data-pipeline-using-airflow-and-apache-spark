@@ -13,7 +13,7 @@ This repository shows the development of a scalable data pipeline in AWS using p
 
 &emsp;
 
-## 0. Setting up the cloud environment in AWS
+## 0. Setup the cloud environment in AWS
 
 AWS provides [Amazon Managed Workflows for Apache Airflow (MWAA)](https://aws.amazon.com/de/blogs/aws/introducing-amazon-managed-workflows-for-apache-airflow-mwaa/) that makes it very easy to run Apache Airflow on AWS.
 
@@ -35,4 +35,4 @@ AWS provides [Amazon Managed Workflows for Apache Airflow (MWAA)](https://aws.am
 
 &emsp;
 
-## 1. Fetching tweets via API
+## 1. Fetch tweets via API call
