@@ -165,6 +165,7 @@ create_schema = PythonOperator(
 ```
 
 The custom function above creates schema and tables directly into the PostgreSQL database in which the final data will be uploaded to. Note how `op_kwargs = default_args` allows to interface with the general configuration information provided. 
+&emsp;
 
 **Indicating the order of the tasks** 
 
