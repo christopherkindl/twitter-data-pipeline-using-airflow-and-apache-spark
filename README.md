@@ -19,7 +19,7 @@ This repository shows the development of a scalable data pipeline in AWS using p
 
 AWS provides [Amazon Managed Workflows for Apache Airflow (MWAA)](https://aws.amazon.com/de/blogs/aws/introducing-amazon-managed-workflows-for-apache-airflow-mwaa/) that makes it very easy to run Apache Airflow on AWS.
 
-1. Go to the [MWAA console](https://console.aws.amazon.com/mwaa/home) and create a new environment
+1. Go to the [MWAA console](https://console.aws.amazon.com/mwaa/home) and click `create a new environment
 
 2. Select an existing [S3 bucket](https://s3.console.aws.amazon.com/) or create a new one and define the path where the Airflow DAG (the script which executes all tasks you want to run for the data pipeline) should be loaded from. The bucket name must start with `airflow-`
 
