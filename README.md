@@ -179,6 +179,6 @@ save_result_to_postgres_db >> end_data_pipeline
 
 ```
 
-![alt text](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/blob/main/03_images/airflow_steps.pdf)
+![alt text](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/blob/main/03_images/airflow_steps.jpg)
 
 See the entire Airflow DAG code of this project [here](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/blob/main/01_airflow/Airflow_DAG.py)
