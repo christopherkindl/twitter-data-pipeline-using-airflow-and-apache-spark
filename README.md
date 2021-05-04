@@ -61,6 +61,8 @@ A sample [variabes file](https://github.com/christopherkindl/twitter-data-pipeli
 
 Airflow also allows to define connection objects. In our case, we need a connection to `AWS` itself (Airflow acts as an external system to AWS) and to our `database` in which the final results will be stored.
 
+&emsp;
+
 ## 1b. General settings in the Airflow DAG
 
 Define basic configuration information, such as `schedule_interval` or `start_date in section` `default_args` and `dag` of the DAG. This is also the place where we incorporate our variables and connection objects
