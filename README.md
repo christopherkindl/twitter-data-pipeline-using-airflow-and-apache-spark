@@ -8,7 +8,8 @@ This repository shows the development of a scalable data pipeline in AWS using p
 
 1. [Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) to clone the repository
 2. [AWS account](https://aws.amazon.com/de/) to run pipeline in cloud environment
-3. Webhosting with [WordPress](https://wordpress.org/support/article/how-to-install-wordpress/) to run the client application
+3. [Twitter developer](https://developer.twitter.com/en/apply-for-access) with access to the standard API to fetch tweets
+4. Webhosting with [WordPress](https://wordpress.org/support/article/how-to-install-wordpress/) to run the client application
 
 &emsp;
 
@@ -31,3 +32,7 @@ AWS provides [Amazon Managed Workflows for Apache Airflow (MWAA)](https://aws.am
 7. Keep the `default settings`
 
 8. Create a `new role` or use an existing one and complete the setup by clicking `create new environment`
+
+&emsp;
+
+## 1. Fetching tweets via API
