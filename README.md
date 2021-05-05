@@ -314,6 +314,9 @@ We can submit our Spark job that contains the python file for the sentiment anal
 **Hint:** The [pyspark scripts](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/tree/main/02_emr_spark_jobs) to run the analyses are not discussed in detail here. In-code comments should be sufficient to understand the concept of each analysis. We can start a Spark session and fetch the Twitter data as follows. 
 
 ```
+
+# code snippet of sentiment_analysis.py
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", type=str, help="HDFS input", default="/twitter_results")
@@ -327,6 +330,8 @@ if __name__ == "__main__":
 ```
 
 To read more about Spark sessions and Spark contexts, check this [post](https://sparkbyexamples.com/spark/sparksession-vs-sparkcontext/).
+
+&emsp;
 
 The figure below summarises the tasks to set up the EMR environment and execute jobs in Spark followed by a code snippet that shows how Spark jobs/steps are defined and called in the Airflow DAG
 
