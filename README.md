@@ -225,7 +225,7 @@ Change [IAM policy](https://github.com/christopherkindl/twitter-data-pipeline-us
 
 **Interaction between Airflow and Amazon EMR**
 
-Airflow offers pre-defined modules to quickly interact with Amazon EMR. The example below shows how an Amazon EMR cluster with Spark and Hadoop application is created using `EmrCreateJobFlowOperator`:
+Airflow offers pre-defined modules to quickly interact with Amazon EMR. The example below shows how an Amazon EMR cluster with Spark (PySpark) and Hadoop application is created using `EmrCreateJobFlowOperator`. **Hint:** our PySpark application requires non-standard libaries which can be installed via [bootstrap action](https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-plan-bootstrap.html) using a [bash](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/blob/main/02_emr_spark_jobs/python-libraries.sh) file.
 
 ```
 
