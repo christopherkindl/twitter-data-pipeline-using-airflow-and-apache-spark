@@ -11,7 +11,8 @@ This repository shows the development of a scalable data pipeline in AWS using p
 2. [AWS account](https://aws.amazon.com/de/) to run pipeline in cloud environment
 3. [Twitter developer account](https://developer.twitter.com/en/apply-for-access) with access to the standard API to fetch tweets
 4. Database - In this project, we use a [PostgreSQL](https://aws.amazon.com/de/rds/postgresql/what-is-postgresql/) database. Database related code snippets (e.g. uploading data to db) might differ when using other databases
-4. Webhosting with [WordPress](https://wordpress.org/support/article/how-to-install-wordpress/) to run the client application
+4. Webhosting and domain with [WordPress](https://wordpress.org/support/article/how-to-install-wordpress/) to run the client application
+5. [wpDataTables](https://wpdatatables.com/pricing/) - WordPress plugin to easily access databases and create production-ready tables and charts
 
 &emsp;
 
