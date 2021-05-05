@@ -1,6 +1,6 @@
 # Data pipeline to process and analyse Twitter data in a distributed fashion using Apache Spark and Airflow in AWS environment
 
-This repository shows the development of a scalable data pipeline in AWS using parallesisation techniques via Apache Spark on Amazon EMR and orchestrating workflows via Apache Airflow. The data analysis part consists of a sentiment analysis using a rule-based approach and a simple topic analysis using word frequencies.  
+This repository shows the development of a scalable data pipeline in [AWS]() using parallesisation techniques via [Apache Spark](https://spark.apache.org/) on [Amazon EMR](https://aws.amazon.com/de/emr/) and orchestrating workflows via [Apache Airflow](https://airflow.apache.org/). The data analysis part consists of a simpl esentiment analysis using a rule-based approach and a topic analysis using word frequencies by applying common NLP techniques.  
 
 The datapipeline is used for an existing [web application](https://subway.christopherkindl.com/) which allows enduser to analyse housing prices based on locations of subway stations. More precisely, users see the average housing price of properties that are within a radius of less than 1km of a particular subway station. Therefore, the new data pipeline shown in this repository is used to make the application richer and, thus, incorporate sentiment scoring and topics analysis to give users a better sense of the common mood and an indication of what type of milieu lives in a particular area.
  
