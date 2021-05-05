@@ -1,6 +1,11 @@
 # Data pipeline to process and analyse Twitter data in a distributed fashion using Apache Spark and Airflow in AWS environment
 
-This repository shows the development of a scalable data pipeline in AWS using parallesisation techniques via Apache Spark on Amazon EMR and orchestrating workflows via Apache Airflow.
+This repository shows the development of a scalable data pipeline in AWS using parallesisation techniques via Apache Spark on Amazon EMR and orchestrating workflows via Apache Airflow. The data analysis part consists of a sentiment analysis using a rule-based approach and a simple topic analysis using word frequencies.  
+
+The datapipeline is used for an existing [web application](https://subway.christopherkindl.com/) which allows enduser to analyse housing prices based on locations of subway stations. More precisely, users see the average housing price of properties that are within a radius of less than 1km of a particular subway station. Therefore, the new data pipeline shown in this repository is used to make the application richer and, thus, incorporate sentiment scoring and topics analysis to give users a better sense of the common mood and an indication of what type of milieu lives in a particular area.
+ 
+The python-based web scraper using `BeautifulSoup` to fetch geo-specific housing prices from property website across London is covered in the [repository]() as well but will not be extensively discussed here.
+
 
 ![alt text](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/blob/main/03_images/Architecture.png)
 
@@ -436,7 +441,7 @@ Key Airflow modules to interface with Amazon EMR:
 Upload the final Airflow DAG to the corresponding path as explaind in the MWAA environment setup guide. Go to the Airflow user interface and start the DAG by switching the button to `On` (**Hint:** use a date in the past to trigger the DAG immediately). 
 
 Useful housekeeping things to know:
-- Log files can be accessed through clicking on the colored status squares which are shown in the [Tree view](https://airflow.apache.org/docs/apache-airflow/stable/ui.html)
+- Log files can be accessed through clicking on the colored status squares which appear in the [Tree view](https://airflow.apache.org/docs/apache-airflow/stable/ui.html) mode
 - When spark steps are running, you can watch it in Amazon EMR (**AWS management console** > **EMR** > **Clusters**) directly and see how the steps are executed
 - Log files of Spark jobs are not shown in the Airflow generated log files, they have to be enabled when configuring the EMR cluster by providing a S3 path (see the example in readme section **Interaction between Airflow and Amazon EMR**)
 
