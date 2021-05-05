@@ -20,7 +20,7 @@ This repository shows the development of a scalable data pipeline in AWS using p
 
 AWS provides [Amazon Managed Workflows for Apache Airflow (MWAA)](https://aws.amazon.com/de/blogs/aws/introducing-amazon-managed-workflows-for-apache-airflow-mwaa/) that makes it very easy to run Apache Airflow on AWS.
 
-1. Go to the [MWAA console](https://console.aws.amazon.com/mwaa/home) and click `create a new environment
+1. Go to the [MWAA console](https://console.aws.amazon.com/mwaa/home) and click `create a new environment` to follow the step-by-step configuration guide
 
 2. Select an existing [S3 bucket](https://s3.console.aws.amazon.com/) or create a new one and define the path where the Airflow DAG (the script which executes all tasks you want to run for the data pipeline) should be loaded from. The bucket name must start with `airflow-`
 
@@ -430,7 +430,21 @@ Key Airflow modules to interface with Amazon EMR:
 
 &emsp;
 
-## 4. Connect database to web application
+
+## 4. Launch Airflow DAG
+
+Upload the final Airflow DAG to the corresponding path as explaind in the MWAA environment setup guide. Go to the Airflow user interface and start the DAG by switching the button to `On` (**Hint:** use a date in the past to trigger the DAG immediately). 
+
+Useful housekeeping things to know:
+- Log files can be accessed through clicking on the colored status squares which are shown in the [Tree view](https://airflow.apache.org/docs/apache-airflow/stable/ui.html)
+- When spark steps are running, you can watch it in Amazon EMR (**AWS management console** > **EMR** > **Clusters**) directly and see how the steps are executed
+- Log files of Spark jobs are not shown in the Airflow generated log files, they have to be enabled when configuring the EMR cluster by providing a S3 path (see the example in readme section **Interaction between Airflow and Amazon EMR**)
+
+A more detailed description can be found here.
+
+&emsp;
+
+## 5. Connect database to web application
 
 For simplification, this documentation does not cover the detailed development process of the website itself. Using the WordPress pluging [wpDataTables](https://wpdatatables.com/pricing/) allows us to easily access any common database (MySQL, PostgreSQL, etc). Apparently, noSQL databases are not supported.  
 
