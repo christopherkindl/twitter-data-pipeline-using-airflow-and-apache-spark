@@ -2,6 +2,7 @@
     "london-housing-webapp": {
         "bucket_name": "london-housing-webapp",
         "key1": "input/subway_station_information.csv"
+        "key2": "input/housing_prices.csv"
         "output_key": "api_output/twitter_results.parquet",
         "db_name": "postgres"
         "consumer_key": "{{TWITTER API KEY}}",
