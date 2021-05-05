@@ -396,6 +396,7 @@ step_adder = EmrAddStepsOperator(
 )
 ```
 
+
 Key Airflow modules to interface with Amazon EMR:
 - `EmrCreateJobFlowOperator()`: to create EMR cluster with desired applications on it
 - `EmrAddStepsOperator()`: to define jobs 
