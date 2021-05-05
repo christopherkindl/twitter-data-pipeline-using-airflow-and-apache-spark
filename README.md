@@ -225,7 +225,7 @@ Change [IAM policy](https://github.com/christopherkindl/twitter-data-pipeline-us
 
 **Interaction between Airflow and Amazon EMR**
 
-Airflow offers pre-defined modules to quickly interact with Amazon EMR. The example below shows how an Amazon EMR cluster with Spark (PySpark) and Hadoop application is created using `EmrCreateJobFlowOperator`. **Hint:** our PySpark application requires non-standard libaries which can be installed via [bootstrap action](https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-plan-bootstrap.html) using a [bash](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/blob/main/02_emr_spark_jobs/python-libraries.sh) file.
+Airflow offers pre-defined modules to quickly interact with Amazon EMR. The example below shows how an Amazon EMR cluster with Spark (PySpark) and Hadoop application is created using `EmrCreateJobFlowOperator()`. **Hint:** our PySpark application requires non-standard libaries which can be installed via [bootstrap action](https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-plan-bootstrap.html) using a [bash](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/blob/main/02_emr_spark_jobs/python-libraries.sh) file.
 
 ```
 
@@ -291,4 +291,91 @@ create_emr_cluster = EmrCreateJobFlowOperator(
     dag=dag,
 )
 
+```
+
+&emsp;
+
+**Submitting Spark jobs**
+
+To submit Spark jobs on Amazon EMR, we use `EmrAddStepsOperator()` and assign our steps/jobs to the variable `steps`:
+
+```
+
+# define spark jobs that are executed on Amazon EMR
+
+SPARK_STEPS = [
+    {
+        "Name": "move raw data from S3 to HDFS",
+        "ActionOnFailure": "CANCEL_AND_WAIT",
+        "HadoopJarStep": {
+            "Jar": "command-runner.jar",
+            "Args": [
+                "s3-dist-cp",
+                "--src=s3://{{BUCKET_NAME}}/api_output/twitter_results.parquet", # refer to the path where the tweets are stored
+                "--dest=/twitter_results", # define destination path in HDFS
+            ],
+        },
+    },
+    {
+        "Name": "run sentiment analysis",
+        "ActionOnFailure": "CANCEL_AND_WAIT",
+        "HadoopJarStep": {
+            "Jar": "command-runner.jar",
+            "Args": [
+                "spark-submit",
+                "--deploy-mode",
+                "client",
+                # refer to the path where the .py script for the data analysis is stored
+                "s3://{{BUCKET_NAME}}/scripts/sentiment_analysis.py", 
+            ],
+        },
+    },
+    {
+        "Name": "move final result of sentiment analysis from HDFS to S3",
+        "ActionOnFailure": "CANCEL_AND_WAIT",
+        "HadoopJarStep": {
+            "Jar": "command-runner.jar",
+            "Args": [
+                "s3-dist-cp",
+                "--src=/output", # path to store results temporarily in HDFS
+                "--dest=s3://{{BUCKET_NAME}}/sentiment/", # final destination in S3 Bucket
+            ],
+        },
+    },
+    {
+        "Name": "run topics analysis",
+        "ActionOnFailure": "CANCEL_AND_WAIT",
+        "HadoopJarStep": {
+            "Jar": "command-runner.jar",
+            "Args": [
+                "spark-submit",
+                "--deploy-mode",
+                "client",
+                # path where .py file for second analysis is stored
+                "s3://{{BUCKET_NAME}}/scripts/topic_analysis.py", 
+            ],
+        },
+    },
+    {
+        "Name": "move final result of topic analysis from HDFS to S3",
+        "ActionOnFailure": "CANCEL_AND_WAIT",
+        "HadoopJarStep": {
+            "Jar": "command-runner.jar",
+            "Args": [
+                "s3-dist-cp",
+                "--src=/output",
+                "--dest=s3://{{BUCKET_NAME}}/topics/",
+            ],
+        },
+    },
+]
+
+# qualify it as an Airflow task
+step_adder = EmrAddStepsOperator(
+    task_id="add_steps",
+    job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
+    aws_conn_id="aws_default_christopherkindl",
+    steps=SPARK_STEPS,
+    dag=dag,
+)
 ```
