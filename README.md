@@ -234,7 +234,7 @@ We use Amazon’s big data platform [EMR](https://docs.aws.amazon.com/emr/latest
 
 **Interaction between Airflow and Amazon EMR**
 
-Every step that will be made on the cluster will be triggered by our Airflow DAG: First, we create the Spark cluster by providing specific configuration details and launch Hadoop for the distributed data storage simultaneously. In terms of the cluster configuration, we use one master node and two worker nodes all running on a m5.xlarge [instance](https://aws.amazon.com/de/ec2/instance-types/) (16 GB RAM, 4 CPU cores) given the relatively small dataset size. Next, we trigger a bootstrap action to install non-standard python libraries ([vaderSentiment](https://pypi.org/project/vaderSentiment/), [NLTK](https://pypi.org/project/nltk/) for NLP pre-processing steps) on which the sentiment and topic analysis script is dependent on. The file is loaded from an S3 bucket and submitted in the form of a [bash](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/blob/main/02_emr_spark_jobs/python-libraries.sh) script. 
+Every step that will be made on the cluster will be triggered by our Airflow DAG: First, we create the Spark cluster by providing specific configuration details and launch Hadoop for the distributed data storage simultaneously. In terms of the cluster configuration, we use one master node and two worker nodes all running on a m5.xlarge [instance](https://aws.amazon.com/de/ec2/instance-types/) (16 GB RAM, 4 CPU cores) given the relatively small dataset size. Next, we trigger a bootstrap action to install non-standard python libraries ([vaderSentiment](https://pypi.org/project/vaderSentiment/), [NLTK](https://pypi.org/project/nltk/) for NLP pre-processing steps) on which the sentiment and topic analysis script is dependent on. The [file](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/blob/main/02_emr_spark_jobs/python-libraries.sh) is loaded from an S3 bucket and submitted in the form of a `bash script. 
 
 Airflow offers pre-defined modules to quickly interact with Amazon EMR. The example below shows how an Amazon EMR cluster with Spark (PySpark) and Hadoop application is created using `EmrCreateJobFlowOperator()`.   
 
@@ -310,6 +310,23 @@ create_emr_cluster = EmrCreateJobFlowOperator(
 **Submitting Spark jobs**
 
 We can submit our Spark job that contains the python file for the sentiment analysis as well as data movement steps. Here, the configuration `s3-dist-cp` allows us to transfer data within S3, or between HDFS and S3. The python file is loaded from the S3 bucket while the scraped Twitter data is moved from the S3 bucket to the HDFS for the sentiment analysis and vice versa once the analysis is done. The same procedure is applied to run the topic analysis. We add a step sensor that will periodically check if the last step is completed, skipped or terminated. After the step sensor identifies the completion of the sentiment analysis (e.g. moving final data from HDFS to S3 bucket), a final step is added to terminate the cluster. The last step is necessary as AWS operates on a pay-per-use model (EMR is usually billed per second) and leaving unneeded resources running is wasteful anyways.
+
+**Hint:** The [pyspark scripts](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/tree/main/02_emr_spark_jobs) to run the analyses are not discussed in detail here. In-code comments should be sufficient to understand the concept of each analysis. We can start a Spark session and fetch the Twitter data as follows. 
+
+```
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input", type=str, help="HDFS input", default="/twitter_results")
+    parser.add_argument("--output", type=str, help="HDFS output", default="/output")
+    args = parser.parse_args()
+    spark = SparkSession.builder.appName("SentimentAnalysis").getOrCreate()
+    
+    # refers to function defined above which can be found in the complete script
+    sentiment_analysis(input_loc=args.input, output_loc=args.output)
+
+```
+
+To read more about Spark sessions and Spark contexts, check this [post](https://sparkbyexamples.com/spark/sparksession-vs-sparkcontext/).
 
 The figure below summarises the tasks to set up the EMR environment and execute jobs in Spark followed by a code snippet that shows how Spark jobs/steps are defined and called in the Airflow DAG
 
@@ -405,3 +422,6 @@ Key Airflow modules to interface with Amazon EMR:
 - `EmrAddStepsOperator()`: to define jobs 
 - `EmrStepSensor()`: to watch steps
 - `EmrTerminateJobFlowOperator()`: to terminate EMR cluster
+
+
+
