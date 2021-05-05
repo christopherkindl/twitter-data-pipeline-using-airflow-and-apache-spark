@@ -1,10 +1,10 @@
 # Data pipeline to process and analyse Twitter data in a distributed fashion using Apache Spark and Airflow in AWS environment
 
-This repository shows the development of a scalable data pipeline in [AWS]() using parallesisation techniques via [Apache Spark](https://spark.apache.org/) on [Amazon EMR](https://aws.amazon.com/de/emr/) and orchestrating workflows via [Apache Airflow](https://airflow.apache.org/). The data analysis part consists of a simpl esentiment analysis using a rule-based approach and a topic analysis using word frequencies by applying common NLP techniques.  
+This repository shows the development of a scalable data pipeline in [AWS](https://aws.amazon.com/de/) using parallelisation techniques via [Apache Spark](https://spark.apache.org/) on [Amazon EMR](https://aws.amazon.com/de/emr/) and orchestrating workflows via [Apache Airflow](https://airflow.apache.org/). The data analysis part consists of a simpl esentiment analysis using a rule-based approach and a topic analysis using word frequencies by applying common NLP techniques.  
 
 The datapipeline is used for an existing [web application](https://subway.christopherkindl.com/) which allows enduser to analyse housing prices based on locations of subway stations. More precisely, users see the average housing price of properties that are within a radius of less than 1km of a particular subway station. Therefore, the new data pipeline shown in this repository is used to make the application richer and, thus, incorporate sentiment scoring and topics analysis to give users a better sense of the common mood and an indication of what type of milieu lives in a particular area.
  
-The python-based web scraper using `BeautifulSoup` to fetch geo-specific housing prices from property website across London is covered in the [repository]() as well but will not be extensively discussed here.
+The python-based web scraper using `BeautifulSoup` to fetch geo-specific housing prices from property website across London is provided in the [repository](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/tree/main/04_web_scraper) as well but will not be extensively discussed here.
 
 
 ![alt text](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/blob/main/03_images/Architecture.png)
