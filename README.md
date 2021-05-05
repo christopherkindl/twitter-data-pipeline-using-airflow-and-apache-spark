@@ -234,11 +234,11 @@ Airflow offers pre-defined modules to quickly interact with Amazon EMR. The exam
 JOB_FLOW_OVERRIDES = {
     "Name": "sentiment_analysis",
     "ReleaseLabel": "emr-5.33.0",
-    "LogUri": "s3n://london-housing-webapp/logs/",
+    "LogUri": "s3n://{{ BUCKET_NAME}}/logs/", # define path where logging files should be saved
     "BootstrapActions": [
         {'Name': 'install python libraries',
                 'ScriptBootstrapAction': {
-                'Path': 's3://london-housing-webapp/scripts/python-libraries.sh'}
+                'Path': 's3://{{ BUCKET_NAME}}/scripts/python-libraries.sh'} # path where the .sh file to install non-standard python libaries is loaded from
                             }
                         ],
     "Applications": [{"Name": "Hadoop"}, {"Name": "Spark"}], # We want our EMR cluster to have HDFS and Spark
@@ -249,10 +249,7 @@ JOB_FLOW_OVERRIDES = {
                 {
                     "Classification": "export",
                     "Properties": {
-                    "PYSPARK_PYTHON": "/usr/bin/python3",
-                    "spark.pyspark.virtualenv.enabled": "true",
-                    "spark.pyspark.virtualenv.type":"native",
-                    "spark.pyspark.virtualenv.bin.path":"/usr/bin/virtualenv"
+                    "PYSPARK_PYTHON": "/usr/bin/python3"
                     },
                 }
             ],
@@ -265,17 +262,17 @@ JOB_FLOW_OVERRIDES = {
                 "Market": "SPOT",
                 "InstanceRole": "MASTER",
                 "InstanceType": "m5.xlarge",
-                "InstanceCount": 1,
+                "InstanceCount": 1, # one master node
             },
             {
-                "Name": "Core - 2",
+                "Name": "Core - 2", 
                 "Market": "SPOT", # Spot instances are a "use as available" instances
                 "InstanceRole": "CORE",
                 "InstanceType": "m5.xlarge",
-                "InstanceCount": 2,
+                "InstanceCount": 2, # two worker nodes
             },
         ],
-        "Ec2SubnetId": "subnet-0427e49b255238212",
+        "Ec2SubnetId": "{{SUBNET_ID}}",
         "KeepJobFlowAliveWhenNoSteps": True,
         "TerminationProtected": False, # this lets us programmatically terminate the cluster
     },
