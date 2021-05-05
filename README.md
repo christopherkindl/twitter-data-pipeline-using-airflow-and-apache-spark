@@ -427,7 +427,7 @@ step_adder = EmrAddStepsOperator(
 ```
 
 
-Key Airflow modules to interface with Amazon EMR:
+**Key Airflow modules to interface with Amazon EMR:**
 - `EmrCreateJobFlowOperator()`: to create EMR cluster with desired applications on it
 - `EmrAddStepsOperator()`: to define jobs 
 - `EmrStepSensor()`: to watch steps
@@ -464,7 +464,7 @@ To anticipate a better website performance, we avoid writing a complex query at 
 
 **Hint:** Views can be easily created using a database administration tool, such as [pgAdmin](https://www.pgadmin.org/)  
 
-he figure below summarises the interaction between client-side and the database.  
+The figure below summarises the interaction between client-side and the database.  
 
 ![alt image](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/blob/main/03_images/web_application.jpg)
 
