@@ -313,7 +313,7 @@ We can submit our Spark job that contains the python file for the sentiment anal
 
 The figure below summarises the tasks to set up the EMR environment and execute jobs in Spark followed by a code snippet that shows how Spark jobs/steps are defined and called in the Airflow DAG
 
-
+![alt text](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/blob/main/03_images/EMR_Spark.jpg)
 
 ```
 
