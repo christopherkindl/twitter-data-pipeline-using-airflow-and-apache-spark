@@ -428,5 +428,10 @@ Key Airflow modules to interface with Amazon EMR:
 - `EmrStepSensor()`: to watch steps
 - `EmrTerminateJobFlowOperator()`: to terminate EMR cluster
 
+&emsp;
 
+## Query results into Webapplication
 
+For simplification, this documentation does not cover the detailed development process of the website itself. Using the WordPress pluging [wpDataTables](https://wpdatatables.com/pricing/) allows us to easily access any common database (MySQL, PostgreSQL, etc). Apparently, noSQL databases are not supported.  
+
+Once installed, you can connect to a database (**WordPress Website Admin Panel** > **wpDataTables** > **Settings** > **separate DB connection**) and run a query (**WordPress Website Admin Panel** > **wpDataTables** > **Create a Table/Chart**) that can be automatically transformed into a table or chat.
