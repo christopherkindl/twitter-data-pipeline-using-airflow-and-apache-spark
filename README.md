@@ -434,6 +434,15 @@ Key Airflow modules to interface with Amazon EMR:
 
 For simplification, this documentation does not cover the detailed development process of the website itself. Using the WordPress pluging [wpDataTables](https://wpdatatables.com/pricing/) allows us to easily access any common database (MySQL, PostgreSQL, etc). Apparently, noSQL databases are not supported.  
 
-Once installed, you can connect to a database (**WordPress Website Admin Panel** > **wpDataTables** > **Settings** > **separate DB connection**) and run a query (**WordPress Website Admin Panel** > **wpDataTables** > **Create a Table/Chart**) that can be automatically transformed into a table or chat:
+Once installed, you can connect to a database (**WordPress Website Admin Panel** > **wpDataTables** > **Settings** > **separate DB connection**) and run a query (**WordPress Website Admin Panel** > **wpDataTables** > **Create a Table/Chart**) that is automatically transformed into a table or chat:
 
 ![alt image](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/blob/main/03_images/wp_plugin.jpg)
+
+**Using views to avoid complex queries at client-side**  
+To anticipate a better website performance, we avoid writing a complex query at client-side and, thus, create a view within the schema that already has both data sources (housing prices, sentiment data) combined. The topic analysis data has its own query due to its generalised form and is accessed directly since it does not require any transformation steps at the client-side. The figure below summarises the interaction between client-side and the database.  
+
+Views can be easily created using a database administration tool, such as [pgAdmin](https://www.pgadmin.org/),
+
+![alt image](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/blob/main/03_images/web_application.jpg)
+
+
