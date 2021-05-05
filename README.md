@@ -238,7 +238,8 @@ JOB_FLOW_OVERRIDES = {
     "BootstrapActions": [
         {'Name': 'install python libraries',
                 'ScriptBootstrapAction': {
-                'Path': 's3://{{ BUCKET_NAME}}/scripts/python-libraries.sh'} # path where the .sh file to install non-standard python libaries is loaded from
+                # path where the .sh file to install non-standard python libaries is loaded from
+                'Path': 's3://{{ BUCKET_NAME}}/scripts/python-libraries.sh'} 
                             }
                         ],
     "Applications": [{"Name": "Hadoop"}, {"Name": "Spark"}], # We want our EMR cluster to have HDFS and Spark
