@@ -110,11 +110,11 @@ Example of a customized function which is then assigned to a `PythonOperator` to
 # custom function
 
 def create_schema(**kwargs):
-    ‘’’
+    '''
     1. connect to Postgre Database
     2. create schema and tables in which the final data will be stored
     3. execute query
-    ‘’’
+    '''
     pg_hook = PostgresHook(postgres_conn_id=kwargs['postgres_conn_id'], schema=kwargs['db_name'])
     conn = pg_hook.get_conn()
     cursor = conn.cursor()
@@ -223,9 +223,21 @@ Change [IAM policy](https://github.com/christopherkindl/twitter-data-pipeline-us
 ```
 &emsp;
 
+**Motivation to use Spark for data analysis**
+
+We want to set up an infrastructure that allows big data analysis in a distributed fashion. [Apache Spark](https://www.infoworld.com/article/3236869/what-is-apache-spark-the-big-data-platform-that-crushed-hadoop.html) as our big data framework of choice has the following two main advantages: First, Spark’s in-memory data engine can perform tasks very efficient due to parallelisation logic. Second, Spark’s developer-friendly API reduces much of the grunt work of distributed computing and can be accessed in various languages. In our case, we use [PySpark](https://pypi.org/project/pyspark/) which is a Python API to interface with Spark on a high-level. This means it is suitable for interacting with an existing cluster but does not contain tools to set up a new, standalone cluster.  
+The parallelisation logic of a distributed architecture is the main driver to speed up processing and, thus, enable scalability. Using Spark’s DataFrame or Resilient Distributed Dataset (RDD) allows to distribute the data computation across a cluster. 
+
+**Under the hood**
+
+We use Amazon’s big data platform [EMR](https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-what-is-emr.html) to run our Spark cluster. A Spark cluster can be characterised by a master node that serves as the central coordinator and worker nodes on which the tasks/jobs are executed (=parallelisation). It requires a distributed storage layer which is [HDFS](https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html) (Hadoop Distributed File System) in our case. S3 object storage is used as our main data storage and HDFS as our intermediate temporary memory on which the script will access the Twitter data and write the results on it. Temporary means that the processed data to HDFS will disappear after termination of the cluster. The reason to use HDFS is because it is a lot faster than writing the results directly to the S3 bucket.  
+
 **Interaction between Airflow and Amazon EMR**
 
-Airflow offers pre-defined modules to quickly interact with Amazon EMR. The example below shows how an Amazon EMR cluster with Spark (PySpark) and Hadoop application is created using `EmrCreateJobFlowOperator()`. **Hint:** our PySpark application requires non-standard libaries which can be installed via [bootstrap action](https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-plan-bootstrap.html) using a [bash](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/blob/main/02_emr_spark_jobs/python-libraries.sh) file.
+Every step that will be made on the cluster will be triggered by our Airflow DAG: First, we create the Spark cluster by providing specific configuration details and launch Hadoop for the distributed data storage simultaneously. In terms of the cluster configuration, we use one master node and two worker nodes all running on a m5.xlarge [instance](https://aws.amazon.com/de/ec2/instance-types/) (16 GB RAM, 4 CPU cores) given the relatively small dataset size. Next, we trigger a bootstrap action to install non-standard python libraries ([vaderSentiment](https://pypi.org/project/vaderSentiment/), [NLTK](https://pypi.org/project/nltk/) for NLP pre-processing steps) on which the sentiment and topic analysis script is dependent on. The file is loaded from an S3 bucket and submitted in the form of a [bash](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/blob/main/02_emr_spark_jobs/python-libraries.sh) script. 
+
+Airflow offers pre-defined modules to quickly interact with Amazon EMR. The example below shows how an Amazon EMR cluster with Spark (PySpark) and Hadoop application is created using `EmrCreateJobFlowOperator()`.   
+
 
 ```
 
@@ -297,7 +309,11 @@ create_emr_cluster = EmrCreateJobFlowOperator(
 
 **Submitting Spark jobs**
 
-To submit Spark jobs on Amazon EMR, we use `EmrAddStepsOperator()` and assign our steps/jobs to the variable `steps`:
+We can submit our Spark job that contains the python file for the sentiment analysis as well as data movement steps. Here, the configuration `s3-dist-cp` allows us to transfer data within S3, or between HDFS and S3. The python file is loaded from the S3 bucket while the scraped Twitter data is moved from the S3 bucket to the HDFS for the sentiment analysis and vice versa once the analysis is done. The same procedure is applied to run the topic analysis. We add a step sensor that will periodically check if the last step is completed, skipped or terminated. After the step sensor identifies the completion of the sentiment analysis (e.g. moving final data from HDFS to S3 bucket), a final step is added to terminate the cluster. The last step is necessary as AWS operates on a pay-per-use model (EMR is usually billed per second) and leaving unneeded resources running is wasteful anyways.
+
+The figure below summarises the tasks to set up the EMR environment and execute jobs in Spark followed by a code snippet that shows how Spark jobs/steps are defined and called in the Airflow DAG
+
+
 
 ```
 
@@ -379,3 +395,9 @@ step_adder = EmrAddStepsOperator(
     dag=dag,
 )
 ```
+
+Key Airflow modules to interface with Amazon EMR:
+- `EmrCreateJobFlowOperator()`: to create EMR cluster with desired applications on it
+- `EmrAddStepsOperator()`: to define jobs 
+- `EmrStepSensor()`: to watch steps
+- `EmrTerminateJobFlowOperator()`: to terminate EMR cluster
