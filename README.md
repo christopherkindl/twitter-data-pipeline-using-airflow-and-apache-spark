@@ -221,3 +221,76 @@ Change [IAM policy](https://github.com/christopherkindl/twitter-data-pipeline-us
 }
 
 ```
+&emsp;
+
+**Interaction between Airflow and Amazon EMR**
+
+Airflow offers pre-defined modules to quickly interact with Amazon EMR. The example below shows how an Amazon EMR cluster with Spark and Hadoop application is created using `EmrCreateJobFlowOperator`:
+
+```
+
+# define configuration setting for EMR cluster
+
+JOB_FLOW_OVERRIDES = {
+    "Name": "sentiment_analysis",
+    "ReleaseLabel": "emr-5.33.0",
+    "LogUri": "s3n://london-housing-webapp/logs/",
+    "BootstrapActions": [
+        {'Name': 'install python libraries',
+                'ScriptBootstrapAction': {
+                'Path': 's3://london-housing-webapp/scripts/python-libraries.sh'}
+                            }
+                        ],
+    "Applications": [{"Name": "Hadoop"}, {"Name": "Spark"}], # We want our EMR cluster to have HDFS and Spark
+    "Configurations": [
+        {
+            "Classification": "spark-env",
+            "Configurations": [
+                {
+                    "Classification": "export",
+                    "Properties": {
+                    "PYSPARK_PYTHON": "/usr/bin/python3",
+                    "spark.pyspark.virtualenv.enabled": "true",
+                    "spark.pyspark.virtualenv.type":"native",
+                    "spark.pyspark.virtualenv.bin.path":"/usr/bin/virtualenv"
+                    },
+                }
+            ],
+        }
+    ],
+    "Instances": {
+        "InstanceGroups": [
+            {
+                "Name": "Master node",
+                "Market": "SPOT",
+                "InstanceRole": "MASTER",
+                "InstanceType": "m5.xlarge",
+                "InstanceCount": 1,
+            },
+            {
+                "Name": "Core - 2",
+                "Market": "SPOT", # Spot instances are a "use as available" instances
+                "InstanceRole": "CORE",
+                "InstanceType": "m5.xlarge",
+                "InstanceCount": 2,
+            },
+        ],
+        "Ec2SubnetId": "subnet-0427e49b255238212",
+        "KeepJobFlowAliveWhenNoSteps": True,
+        "TerminationProtected": False, # this lets us programmatically terminate the cluster
+    },
+    "JobFlowRole": "EMR_EC2_DefaultRole",
+    "ServiceRole": "EMR_DefaultRole",
+}
+
+
+# qualify it as an Airflow task
+create_emr_cluster = EmrCreateJobFlowOperator(
+    task_id="create_emr_cluster",
+    job_flow_overrides=JOB_FLOW_OVERRIDES, # 
+    aws_conn_id="aws_default_christopherkindl",
+    emr_conn_id="emr_default_christopherkindl",
+    dag=dag,
+)
+
+```
