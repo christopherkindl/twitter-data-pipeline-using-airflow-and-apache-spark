@@ -178,7 +178,7 @@ The custom function above creates schema and tables directly into the PostgreSQL
 
 Tasks can be executed in sequence or simoutanesly if possible. The order can be indicated with the following example syntax:
 
-```
+```Python
 
 start_data_pipeline >> create_schema >> get_twitter_data >> create_emr_cluster >> step_adder
 step_adder >> step_checker >> terminate_emr_cluster >> summarised_data_lineage_spark >> save_result_to_postgres_db
@@ -201,7 +201,7 @@ See the entire Airflow DAG code of this project [here](https://github.com/christ
 
 Change [IAM policy](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/blob/main/IAM_policy_configuration.json) to the following setting to allow MWAA to interface with Amazon EMR. 
 
-```
+```JSON
 {
     "Version": "2012-10-17",
     "Statement": [
@@ -244,7 +244,7 @@ Every step that will be made on the cluster will be triggered by our Airflow DAG
 Airflow offers pre-defined modules to quickly interact with Amazon EMR. The example below shows how an Amazon EMR cluster with Spark (PySpark) and Hadoop application is created using `EmrCreateJobFlowOperator()`.   
 
 
-```
+```Python
 
 # define configuration setting for EMR cluster
 
@@ -318,7 +318,7 @@ We can submit our Spark job that contains the python file for the sentiment anal
 
 **Hint:** The [pyspark scripts](https://github.com/christopherkindl/twitter-data-pipeline-using-airflow-and-apache-spark/tree/main/02_emr_spark_jobs) to run the analyses are not discussed in detail here. In-code comments should be sufficient to understand the concept of each analysis. We can start a Spark session and fetch the Twitter data as follows. 
 
-```
+```Python
 
 # code snippet of sentiment_analysis.py
 
@@ -345,7 +345,7 @@ The figure below summarises the tasks to set up the EMR environment and execute 
 
 **Spark-specific jobs:**
 
-```
+```Python
 
 # define spark jobs that are executed on Amazon EMR
 
