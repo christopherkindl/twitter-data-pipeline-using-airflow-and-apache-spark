@@ -47,7 +47,7 @@ AWS provides [Amazon Managed Workflows for Apache Airflow (MWAA)](https://aws.am
 
 MWAA provides variables to store and retrieve arbitrary content or settings as a simple key-value store within Airflow. They can be created directly from the user interface (Admin > Variables) or bulk uploaded via `JSON` files.
 
-```
+```JSON
 
 {
     "london-housing-webapp": {
