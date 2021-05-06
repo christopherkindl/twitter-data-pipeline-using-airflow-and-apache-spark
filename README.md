@@ -52,7 +52,7 @@ MWAA provides variables to store and retrieve arbitrary content or settings as a
 {
     "london-housing-webapp": {
         "bucket_name": "london-housing-webapp",
-        "key1": "input/subway_station_information.csv" 
+        "key1": "input/subway_station_information.csv", 
         "output_key": "api_output/twitter_results.parquet",
         "db_name": "postgres",
         "consumer_key": "{{TWITTER API KEY}}",
