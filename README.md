@@ -52,9 +52,9 @@ MWAA provides variables to store and retrieve arbitrary content or settings as a
 {
     "london-housing-webapp": {
         "bucket_name": "london-housing-webapp",
-        "key1": "input/subway_station_information.csv" # where the geo information file for the API request is loaded from
-        "output_key": "api_output/twitter_results.parquet", # where to store the scraped tweets
-        "db_name": "postgres", # name of db
+        "key1": "input/subway_station_information.csv" 
+        "output_key": "api_output/twitter_results.parquet",
+        "db_name": "postgres",
         "consumer_key": "{{TWITTER API KEY}}",
         "consumer_secret": "{{TWITTER API SECRET}}",
         "access_token": "{{TWITTER API ACCESS TOKEN}}",
@@ -74,7 +74,7 @@ Airflow also allows to define connection objects. In our case, we need a connect
 
 Define basic configuration information, such as `schedule_interval` or `start_date in section` `default_args` and `dag` of the DAG. This is also the place where we incorporate our variables and connection objects
 
-```
+```Python
 
 default_args = {
     'start_date': datetime(2021, 3, 8),
@@ -110,7 +110,7 @@ We can either write customized functions (e.g. request data via Twitter API) or 
 
 Example of a customized function which is then assigned to a `PythonOperator` to function as a task:
 
-```
+```Python
 
 # custom function
 
